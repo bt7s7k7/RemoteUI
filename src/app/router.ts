@@ -1,17 +1,18 @@
+import { h } from "vue"
 import { createRouter, createWebHistory, RouteRecordRaw } from "vue-router"
-import { Home } from "./routes/Home"
+import { RemoteUITest } from "./RemoteUITest"
 
 const routes: RouteRecordRaw[] = [
     {
         name: "Home",
         path: "/",
-        component: Home
+        component: RemoteUITest
     },
-    // {
-    //     path: '/about',
-    //     name: 'About',
-    //     component: () => import(/* webpackChunkName: "about" */ './routes/About.tsx')
-    // }
+    {
+        name: "404",
+        component: { setup: () => () => h("pre", { class: "m-4" }, "Page not found") },
+        path: "/:page(.*)*"
+    }
 ]
 
 export const router = createRouter({
