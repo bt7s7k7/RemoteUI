@@ -1,4 +1,5 @@
 import { defineComponent, shallowRef } from "vue"
+import { delayedPromise } from "../comTypes/util"
 import { IDProvider } from "../dependencyInjection/commonServices/IDProvider"
 import { MessageBridge } from "../dependencyInjection/commonServices/MessageBridge"
 import { DIContext } from "../dependencyInjection/DIContext"
@@ -33,10 +34,12 @@ export const RemoteUITest = (defineComponent({
                 index: defineRouteController(ctx => {
                     let count = 0
 
-                    const increment = ctx.action("increment", (event) => {
+                    const increment = ctx.action("increment", async (event) => {
+                        await delayedPromise(100)
+
                         count++
                         ctx.controller.update()
-                    })
+                    }, { waitForCompletion: true })
 
                     const form = ctx.form("form", Type.object({ hello: Type.string, output: Type.string }))
                     const submitForm = form.action("submit", event => {

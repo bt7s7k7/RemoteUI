@@ -7,6 +7,7 @@ import { Button } from "../vue3gui/Button"
 import { LoadingIndicator } from "../vue3gui/LoadingIndicator"
 import { Overlay } from "../vue3gui/Overlay"
 import { TextField } from "../vue3gui/TextField"
+import { stringifyError } from "../vue3gui/util"
 import { RemoteUIProxy, RemoteUISessionHandle } from "./RemoteUIProxy"
 
 const REMOTE_UI_KEY: InjectionKey<RemoteUIProxy> = Symbol("remoteUI")
@@ -30,12 +31,25 @@ const UI_ELEMENT_SETUP: Record<keyof typeof UI, (element: any) => () => any> = {
         function click() {
             const actionID = props.element.onClick!
             const action = parseActionID(actionID)
+            let promise: Promise<void>
             if (action.type == "action") {
-                session.value.triggerAction(actionID, null, props.element.name)
+                promise = session.value.triggerAction(actionID, null, props.element.name)
             } else if (action.type == "form") {
                 const form = session.value.forms[action.form]
-                session.value.triggerAction(actionID, form, props.element.name)
+                promise = session.value.triggerAction(actionID, form, props.element.name)
             } else unreachable()
+
+            if (action.waitForCompletion) {
+                session.value.loading++
+                promise.then(() => {
+                    session.value.loading--
+                }, error => {
+                    session.value.loading--
+                    // eslint-disable-next-line no-console
+                    console.error(error)
+                    session.value.error = stringifyError(error)
+                })
+            }
         }
 
         return () => (
@@ -135,7 +149,7 @@ export const RemoteUIView = (defineComponent({
         provide(SESSION_KEY, session)
 
         return () => (
-            <Overlay show={!session.value.root}>{{
+            <Overlay show={!session.value.root || session.value.loading > 0}>{{
                 overlay: () => <LoadingIndicator />,
                 default: () => (
                     session.value.root && <UIElementView element={session.value.root!} />

@@ -7,9 +7,11 @@ export class RemoteUISessionHandle {
     public root: UIElement | null = null
     public id: string = null!
     public forms: Record<string, any> = {}
+    public loading = 0
+    public error: string | null = null
 
     public triggerAction(action: string, form: any, sender: string | null | undefined) {
-        this.proxy.triggerAction({ session: this.id, action, form, sender })
+        return this.proxy.triggerAction({ session: this.id, action, form, sender })
     }
 
     public close() {
