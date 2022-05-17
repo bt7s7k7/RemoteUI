@@ -1,9 +1,11 @@
+import { mdiAlert } from "@mdi/js"
 import { computed, defineComponent, h, inject, InjectionKey, PropType, provide, Ref, ref, watch } from "vue"
 import { unreachable } from "../comTypes/util"
 import { Route } from "../remoteUICommon/RemoteUI"
 import { parseActionID, UI, UIElement } from "../remoteUICommon/UIElement"
 import { Struct } from "../struct/Struct"
 import { Button } from "../vue3gui/Button"
+import { Icon } from "../vue3gui/Icon"
 import { LoadingIndicator } from "../vue3gui/LoadingIndicator"
 import { Overlay } from "../vue3gui/Overlay"
 import { TextField } from "../vue3gui/TextField"
@@ -149,10 +151,20 @@ export const RemoteUIView = (defineComponent({
         provide(SESSION_KEY, session)
 
         return () => (
-            <Overlay show={!session.value.root || session.value.loading > 0}>{{
+            <Overlay class="flex column" show={!session.value.root || session.value.loading > 0}>{{
                 overlay: () => <LoadingIndicator />,
                 default: () => (
-                    session.value.root && <UIElementView element={session.value.root!} />
+                    <Overlay class="flex-fill flex column" show={session.value.error != null}>{{
+                        overlay: () => (
+                            <div class="p-4 bg-white text-danger rounded flex center column gap-2 text-danger">
+                                <h1 class="m-0"> <Icon icon={mdiAlert} /> </h1>
+                                {session.value.error}
+                            </div>
+                        ),
+                        default: () => (
+                            session.value.root && <UIElementView element={session.value.root!} />
+                        )
+                    }}</Overlay>
                 )
             }}</Overlay>
         )

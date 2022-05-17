@@ -10,7 +10,7 @@ import { RemoteUIProxy } from "../remoteUIFrontend/RemoteUIProxy"
 import { RemoteUIView } from "../remoteUIFrontend/RemoteUIView"
 import { Type } from "../struct/Type"
 import { StructSyncClient } from "../structSync/StructSyncClient"
-import { StructSyncServer } from "../structSync/StructSyncServer"
+import { ClientError, StructSyncServer } from "../structSync/StructSyncServer"
 import { StructSyncSession } from "../structSync/StructSyncSession"
 
 export const RemoteUITest = (defineComponent({
@@ -46,6 +46,10 @@ export const RemoteUITest = (defineComponent({
                         form.update(event.session, { ...event.data, output: event.data.hello.toUpperCase() })
                     })
 
+                    const throwError = ctx.action("throwError", async () => {
+                        throw new ClientError("This is an error!")
+                    }, { waitForCompletion: true })
+
                     return () => (
                         new UI.Frame({
                             axis: "column",
@@ -78,6 +82,10 @@ export const RemoteUITest = (defineComponent({
                                         new UI.Button({
                                             text: "Increment",
                                             onClick: increment.id
+                                        }),
+                                        new UI.Button({
+                                            text: "Throw",
+                                            onClick: throwError.id
                                         })
                                     ]
                                 })
