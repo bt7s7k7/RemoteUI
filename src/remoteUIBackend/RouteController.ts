@@ -29,6 +29,8 @@ type FormActionCallback<T> = (event: FormEvent<T>) => void | Promise<void>
 interface FormHandle<T> {
     id: string
     action(name: string, callback: FormActionCallback<T>, options?: { waitForCompletion?: boolean }): ActionHandle
+    model: Record<keyof T, string>
+    update(session: RemoteUISession, data: T): void
 }
 
 type ActionCallback = (event: ActionEvent) => void | Promise<void>
@@ -78,7 +80,10 @@ export class RouteController extends Disposable {
             if (!form) throw new ClientError(`Invalid action "${actionID}"`)
             const action = form.actions.get(actionData.action)
             if (!action) throw new ClientError(`Invalid action "${actionID}"`)
-            await action({ session, data: formData })
+
+            const verifiedFormData = form.type.deserialize(formData)
+
+            await action({ session, data: verifiedFormData })
         } else throw new ClientError(`Cannot trigger meta action on backend (was "${actionID}")`)
     }
 
@@ -125,7 +130,9 @@ export function defineRouteController(setup: (ctx: RouteControllerContext) => (s
             return { id }
         },
         form(name, type, defaultFactory) {
-            const id = "form_" + name
+            const id = name
+
+            if (!Type.isObject(type)) throw new Error("Form type must be an object")
 
             const form: FormDefinition = {
                 type, id,
@@ -138,11 +145,15 @@ export function defineRouteController(setup: (ctx: RouteControllerContext) => (s
             return {
                 id,
                 action(name, callback, options = {}) {
-                    const id = form.id + "_" + name + (options.waitForCompletion ? "*" : "")
+                    const id = "form_" + form.id + "_" + name + (options.waitForCompletion ? "*" : "")
 
                     form.actions.set(name, callback)
 
                     return { id }
+                },
+                model: Object.fromEntries(type.propList.map(([key]) => [key, form.id + "_" + key])) as any,
+                update(session, data) {
+                    session.updateForm(form.id, data)
                 }
             }
         },

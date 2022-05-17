@@ -50,6 +50,12 @@ export namespace UI {
         ...styleProps
     }) { }
 
+    export class Output extends Struct.define("Output", {
+        model: Type.string,
+        ...positionProps,
+        ...styleProps
+    }) { }
+
     export class Frame extends Struct.define("Frame", {
         children: UIElementInternal_t.as(Type.array).as(Type.nullable),
         ...layoutProps,
@@ -67,6 +73,12 @@ export namespace UI {
         name: Type.string.as(Type.nullable),
         variant: Variant_t.as(Type.nullable),
         clear: Type.boolean.as(Type.nullable),
+        ...positionProps,
+        ...styleProps
+    }) { }
+
+    export class Input extends Struct.define("Input", {
+        model: Type.string,
         ...positionProps,
         ...styleProps
     }) { }

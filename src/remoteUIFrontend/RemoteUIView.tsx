@@ -6,6 +6,7 @@ import { Struct } from "../struct/Struct"
 import { Button } from "../vue3gui/Button"
 import { LoadingIndicator } from "../vue3gui/LoadingIndicator"
 import { Overlay } from "../vue3gui/Overlay"
+import { TextField } from "../vue3gui/TextField"
 import { RemoteUIProxy, RemoteUISessionHandle } from "./RemoteUIProxy"
 
 const REMOTE_UI_KEY: InjectionKey<RemoteUIProxy> = Symbol("remoteUI")
@@ -31,6 +32,9 @@ const UI_ELEMENT_SETUP: Record<keyof typeof UI, (element: any) => () => any> = {
             const action = parseActionID(actionID)
             if (action.type == "action") {
                 session.value.triggerAction(actionID, null, props.element.name)
+            } else if (action.type == "form") {
+                const form = session.value.forms[action.form]
+                session.value.triggerAction(actionID, form, props.element.name)
             } else unreachable()
         }
 
@@ -58,6 +62,24 @@ const UI_ELEMENT_SETUP: Record<keyof typeof UI, (element: any) => () => any> = {
             </div>
         )
     },
+    Input: (props: ElementProps<UI.Input>) => {
+        const session = inject(SESSION_KEY)!
+
+        const model = computed(() => props.element.model.split("_"))
+
+        return () => (
+            <TextField vModel={session.value.forms[model.value[0]][model.value[1]]} />
+        )
+    },
+    Output: (props: ElementProps<UI.Input>) => {
+        const session = inject(SESSION_KEY)!
+
+        const model = computed(() => props.element.model.split("_"))
+
+        return () => (
+            <span>{session.value.forms[model.value[0]][model.value[1]]}</span>
+        )
+    }
 }
 
 const UI_ELEMENT_LOOKUP = Object.fromEntries(Object.entries(UI_ELEMENT_SETUP).map(([key, value]) => [key, defineComponent({

@@ -65,6 +65,13 @@ export class RemoteUIProxy extends RemoteUIContract.defineProxy() {
             sessionHandle.root = root
         })
 
+        this.onFormUpdate.add(null, ({ form, session, data }) => {
+            const sessionHandle = this.sessions.get(session)
+            if (!sessionHandle) return
+
+            sessionHandle.forms[form] = data
+        })
+
         return self
     }
 }

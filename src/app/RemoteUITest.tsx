@@ -7,6 +7,7 @@ import { defineRouteController } from "../remoteUIBackend/RouteController"
 import { UI } from "../remoteUICommon/UIElement"
 import { RemoteUIProxy } from "../remoteUIFrontend/RemoteUIProxy"
 import { RemoteUIView } from "../remoteUIFrontend/RemoteUIView"
+import { Type } from "../struct/Type"
 import { StructSyncClient } from "../structSync/StructSyncClient"
 import { StructSyncServer } from "../structSync/StructSyncServer"
 import { StructSyncSession } from "../structSync/StructSyncSession"
@@ -37,17 +38,45 @@ export const RemoteUITest = (defineComponent({
                         ctx.controller.update()
                     })
 
+                    const form = ctx.form("form", Type.object({ hello: Type.string, output: Type.string }))
+                    const submitForm = form.action("submit", event => {
+                        form.update(event.session, { ...event.data, output: event.data.hello.toUpperCase() })
+                    })
+
                     return () => (
                         new UI.Frame({
-                            axis: "row",
+                            axis: "column",
                             gap: 2,
                             children: [
-                                new UI.Label({
-                                    text: `Count: ${count}`
+                                new UI.Frame({
+                                    axis: "row",
+                                    gap: 2,
+                                    children: [
+                                        new UI.Input({
+                                            model: form.model.hello,
+                                            fill: true
+                                        }),
+                                        new UI.Button({
+                                            text: "Submit",
+                                            onClick: submitForm.id
+                                        })
+                                    ]
                                 }),
-                                new UI.Button({
-                                    text: "Increment",
-                                    onClick: increment.id
+                                new UI.Output({
+                                    model: form.model.output
+                                }),
+                                new UI.Frame({
+                                    axis: "row",
+                                    gap: 2,
+                                    children: [
+                                        new UI.Label({
+                                            text: `Count: ${count}`
+                                        }),
+                                        new UI.Button({
+                                            text: "Increment",
+                                            onClick: increment.id
+                                        })
+                                    ]
                                 })
                             ]
                         })
