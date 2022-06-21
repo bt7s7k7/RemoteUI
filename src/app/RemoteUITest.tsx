@@ -51,39 +51,39 @@ export const RemoteUITest = (defineComponent({
                     }, { waitForCompletion: true })
 
                     return () => (
-                        new UI.Frame({
+                        UI.frame({
                             axis: "column",
                             gap: 2,
                             children: [
-                                new UI.Frame({
+                                UI.frame({
                                     axis: "row",
                                     gap: 2,
                                     children: [
-                                        new UI.Input({
+                                        UI.input({
                                             model: form.model.hello,
                                             fill: true
                                         }),
-                                        new UI.Button({
+                                        UI.button({
                                             text: "Submit",
-                                            onClick: submitForm.id
+                                            onClick: submitForm
                                         })
                                     ]
                                 }),
-                                new UI.Output({
+                                UI.output({
                                     model: form.model.output
                                 }),
-                                new UI.Frame({
+                                UI.frame({
                                     axis: "row",
                                     gap: 2,
                                     children: [
-                                        new UI.Label({
+                                        UI.label({
                                             text: `Count: ${count}`
                                         }),
-                                        new UI.Button({
+                                        UI.button({
                                             text: "Increment",
                                             onClick: increment.id
                                         }),
-                                        new UI.Button({
+                                        UI.button({
                                             text: "Throw",
                                             onClick: throwError.id
                                         })

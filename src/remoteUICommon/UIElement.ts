@@ -3,7 +3,7 @@ import { SerializationError, Type } from "../struct/Type"
 
 export type MetaActionType = "cancel" | "reload"
 
-export type UIElement = InstanceType<(typeof UI)[keyof typeof UI]>
+export type UIElement = InstanceType<(typeof UI.InternalTypes)[keyof typeof UI.InternalTypes]>
 
 export const UIElementInternal_t: Type<unknown> = Type.createType({
     default: () => null,
@@ -14,9 +14,9 @@ export const UIElementInternal_t: Type<unknown> = Type.createType({
         return data
     },
     deserialize(source) {
-        const name = source.type as keyof typeof UI
-        if (!(name in UI)) throw new SerializationError(`Invalid UI element type "${name}"`)
-        const ctor = UI[name]
+        const name = source.type as keyof typeof UI.InternalTypes
+        if (!(name in UI.InternalTypes)) throw new SerializationError(`Invalid UI element type "${name}"`)
+        const ctor = UI.InternalTypes[name]
         return ctor.deserialize(source)
     },
     getDefinition(indent) { return indent + this.name },
@@ -43,45 +43,65 @@ const styleProps = {
     monospace: Type.boolean.as(Type.nullable)
 }
 
+type ElementOptions = {
+    [P in keyof typeof UI.InternalTypes]: ConstructorParameters<typeof UI.InternalTypes[P]>[0]
+}
+
+function defaultFactory<K extends keyof ElementOptions>(name: K) { return (options: ElementOptions[K]) => new UI.InternalTypes[name](options as any) }
+
 export namespace UI {
-    export class Label extends Struct.define("Label", {
-        text: Type.string,
-        ...positionProps,
-        ...styleProps
-    }) { }
+    export const label = defaultFactory("Label")
+    export const output = defaultFactory("Output")
+    export const input = defaultFactory("Input")
+    export function button(options: Omit<ElementOptions["Button"], "onClick"> & { onClick?: string | undefined | null | { id: string } }) {
+        if (options.onClick != null && typeof options.onClick == "object") {
+            options.onClick = options.onClick.id
+        }
 
-    export class Output extends Struct.define("Output", {
-        model: Type.string,
-        ...positionProps,
-        ...styleProps
-    }) { }
-
-    export class Frame extends Struct.define("Frame", {
-        children: UIElementInternal_t.as(Type.array).as(Type.nullable),
-        ...layoutProps,
-        ...positionProps,
-        ...styleProps
-    }) { }
-
-    export interface Frame {
-        children: UIElement[]
+        return new InternalTypes.Button(options as ElementOptions["Button"])
     }
+    export function frame(options?: Omit<Exclude<ElementOptions["Frame"], void>, "children"> & { children?: UIElement[] }) { return new InternalTypes.Frame(options) }
 
-    export class Button extends Struct.define("Button", {
-        text: Type.string,
-        onClick: Type.string.as(Type.nullable),
-        name: Type.string.as(Type.nullable),
-        variant: Variant_t.as(Type.nullable),
-        clear: Type.boolean.as(Type.nullable),
-        ...positionProps,
-        ...styleProps
-    }) { }
+    export namespace InternalTypes {
+        export class Label extends Struct.define("Label", {
+            text: Type.string,
+            ...positionProps,
+            ...styleProps
+        }) { }
 
-    export class Input extends Struct.define("Input", {
-        model: Type.string,
-        ...positionProps,
-        ...styleProps
-    }) { }
+        export class Output extends Struct.define("Output", {
+            model: Type.string,
+            ...positionProps,
+            ...styleProps
+        }) { }
+
+        export class Frame extends Struct.define("Frame", {
+            children: UIElementInternal_t.as(Type.array).as(Type.nullable),
+            ...layoutProps,
+            ...positionProps,
+            ...styleProps
+        }) { }
+
+        export interface Frame {
+            children?: UIElement[]
+        }
+
+        export class Button extends Struct.define("Button", {
+            text: Type.string,
+            onClick: Type.string.as(Type.nullable),
+            name: Type.string.as(Type.nullable),
+            variant: Variant_t.as(Type.nullable),
+            clear: Type.boolean.as(Type.nullable),
+            ...positionProps,
+            ...styleProps
+        }) { }
+
+        export class Input extends Struct.define("Input", {
+            model: Type.string,
+            ...positionProps,
+            ...styleProps
+        }) { }
+    }
 }
 
 export function parseActionID(id: string) {

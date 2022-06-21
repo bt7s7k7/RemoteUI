@@ -71,7 +71,7 @@ const NULL_ROUTE_RESOLVER: RouteResolver = {
 
 const DEFAULT_ROUTE = defineRouteController(ctx => {
     return () => (
-        new UI.Label({
+        UI.label({
             text: "Page not found",
             monospace: true
         })

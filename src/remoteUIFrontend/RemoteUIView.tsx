@@ -15,7 +15,7 @@ import { RemoteUIProxy, RemoteUISessionHandle } from "./RemoteUIProxy"
 const REMOTE_UI_KEY: InjectionKey<RemoteUIProxy> = Symbol("remoteUI")
 const SESSION_KEY: InjectionKey<Ref<RemoteUISessionHandle>> = Symbol("remoteUISession")
 
-function getLayoutClasses(element: Omit<UI.Frame, "children">) {
+function getLayoutClasses(element: Omit<UI.InternalTypes.Frame, "children">) {
     return [
         element.axis,
         element.gap && `gap-${element.gap}`
@@ -26,8 +26,8 @@ interface ElementProps<T> {
     element: T
 }
 
-const UI_ELEMENT_SETUP: Record<keyof typeof UI, (element: any) => () => any> = {
-    Button: (props: ElementProps<UI.Button>) => {
+const UI_ELEMENT_SETUP: Record<keyof typeof UI.InternalTypes, (element: any) => () => any> = {
+    Button: (props: ElementProps<UI.InternalTypes.Button>) => {
         const session = inject(SESSION_KEY)!
 
         function click() {
@@ -62,23 +62,23 @@ const UI_ELEMENT_SETUP: Record<keyof typeof UI, (element: any) => () => any> = {
             >{props.element.text}</Button>
         )
     },
-    Label: (props: ElementProps<UI.Label>) => {
+    Label: (props: ElementProps<UI.InternalTypes.Label>) => {
 
         return () => (
             <span>{props.element.text}</span>
         )
     },
-    Frame: (props: ElementProps<UI.Frame>) => {
+    Frame: (props: ElementProps<UI.InternalTypes.Frame>) => {
 
         return () => (
             <div class={[...getLayoutClasses(props.element), "flex"]}>
-                {props.element.children.map(v => (
+                {props.element.children?.map(v => (
                     <UIElementView element={v} />
                 ))}
             </div>
         )
     },
-    Input: (props: ElementProps<UI.Input>) => {
+    Input: (props: ElementProps<UI.InternalTypes.Input>) => {
         const session = inject(SESSION_KEY)!
 
         const model = computed(() => props.element.model.split("_"))
@@ -87,7 +87,7 @@ const UI_ELEMENT_SETUP: Record<keyof typeof UI, (element: any) => () => any> = {
             <TextField vModel={session.value.forms[model.value[0]][model.value[1]]} />
         )
     },
-    Output: (props: ElementProps<UI.Input>) => {
+    Output: (props: ElementProps<UI.InternalTypes.Input>) => {
         const session = inject(SESSION_KEY)!
 
         const model = computed(() => props.element.model.split("_"))
