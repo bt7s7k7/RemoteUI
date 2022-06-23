@@ -1,5 +1,6 @@
 import { Struct } from "../struct/Struct"
 import { SerializationError, Type } from "../struct/Type"
+import { Variant } from "../vue3gui/variants"
 
 export type MetaActionType = "cancel" | "reload"
 
@@ -25,15 +26,22 @@ export const UIElementInternal_t: Type<unknown> = Type.createType({
 
 export const UIElement_t = UIElementInternal_t as Type<UIElement>
 
-const Variant_t = Type.stringUnion("white", "black", "dark", "primary", "secondary", "success", "danger", "warning")
+const Variant_t = Type.enum(...Variant.LIST)
+const Border_t = Type.enum(...Variant.LIST, true)
 
 const layoutProps = {
-    axis: Type.stringUnion("column", "row").as(Type.nullable),
-    gap: Type.number.as(Type.nullable)
+    axis: Type.enum("column", "row").as(Type.nullable),
+    gap: Type.number.as(Type.nullable),
+    center: Type.enum("all", "main", "cross").as(Type.nullable),
+    border: Border_t.as(Type.nullable),
+    rounded: Type.boolean.as(Type.nullable)
 }
 
 const positionProps = {
-    fill: Type.boolean.as(Type.nullable)
+    fill: Type.boolean.as(Type.nullable),
+    basis: Type.number.as(Type.nullable),
+    margin: Type.string.as(Type.nullable),
+    padding: Type.string.as(Type.nullable)
 }
 
 const styleProps = {
@@ -60,11 +68,26 @@ export namespace UI {
 
         return new InternalTypes.Button(options as ElementOptions["Button"])
     }
+    export function editable(options: Omit<ElementOptions["Editable"], "onChange"> & { onChange?: string | undefined | null | { id: string } }) {
+        if (options.onChange != null && typeof options.onChange == "object") {
+            options.onChange = options.onChange.id
+        }
+
+        return new InternalTypes.Editable(options as ElementOptions["Editable"])
+    }
+    export function checkbox(options: Omit<ElementOptions["Checkbox"], "onChange"> & { onChange?: string | undefined | null | { id: string } }) {
+        if (options.onChange != null && typeof options.onChange == "object") {
+            options.onChange = options.onChange.id
+        }
+
+        return new InternalTypes.Checkbox(options as ElementOptions["Checkbox"])
+    }
     export function frame(options?: Omit<Exclude<ElementOptions["Frame"], void>, "children"> & { children?: UIElement[] }) { return new InternalTypes.Frame(options) }
 
     export namespace InternalTypes {
         export class Label extends Struct.define("Label", {
             text: Type.string,
+            size: Type.enum("small", "h1", "h2", "h3").as(Type.nullable),
             ...positionProps,
             ...styleProps
         }) { }
@@ -101,6 +124,22 @@ export namespace UI {
             ...positionProps,
             ...styleProps
         }) { }
+
+        export class Checkbox extends Struct.define("Checkbox", {
+            model: Type.string,
+            onChange: Type.string.as(Type.nullable),
+            name: Type.string.as(Type.nullable),
+            ...positionProps,
+            ...styleProps
+        }) { }
+
+        export class Editable extends Struct.define("Editable", {
+            model: Type.string,
+            onChange: Type.string.as(Type.nullable),
+            name: Type.string.as(Type.nullable),
+            ...positionProps,
+            ...styleProps
+        }) { }
     }
 }
 
@@ -129,4 +168,13 @@ export function parseActionID(id: string) {
     return { type: type as "form" | "action" | "meta", form, action, waitForCompletion } as (
         { type: "action" | "meta" } | { type: "form", form: string }
     ) & { action: string, waitForCompletion: boolean }
+}
+
+export function parseModelID(id: string) {
+    const formEnd = id.indexOf("_")
+    if (formEnd == -1) throw new Error("Missing model component: path")
+    const form = id.slice(0, formEnd)
+    const property = id.slice(formEnd + 1)
+    const path = property.split(".")
+    return { form, path }
 }

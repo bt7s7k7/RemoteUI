@@ -1,10 +1,11 @@
 import { mdiAlert } from "@mdi/js"
 import { computed, defineComponent, h, inject, InjectionKey, PropType, provide, Ref, ref, watch } from "vue"
-import { unreachable } from "../comTypes/util"
+import { cloneArray, isAlpha, unreachable, unzip } from "../comTypes/util"
 import { Route } from "../remoteUICommon/RemoteUI"
-import { parseActionID, UI, UIElement } from "../remoteUICommon/UIElement"
+import { parseActionID, parseModelID, UI, UIElement } from "../remoteUICommon/UIElement"
 import { Struct } from "../struct/Struct"
 import { Button } from "../vue3gui/Button"
+import { useDynamicsEmitter } from "../vue3gui/DynamicsEmitter"
 import { Icon } from "../vue3gui/Icon"
 import { LoadingIndicator } from "../vue3gui/LoadingIndicator"
 import { Overlay } from "../vue3gui/Overlay"
@@ -18,12 +19,82 @@ const SESSION_KEY: InjectionKey<Ref<RemoteUISessionHandle>> = Symbol("remoteUISe
 function getLayoutClasses(element: Omit<UI.InternalTypes.Frame, "children">) {
     return [
         element.axis,
-        element.gap && `gap-${element.gap}`
+        element.gap && `gap-${element.gap}`,
+        element.rounded && `rounded`,
+        element.center == "all" && `center`,
+        element.center == "cross" && `center-cross`,
+        element.center == "main" && `center-main`,
+        element.border && (`border` + (element.border !== true ? ` border-${element.border}` : "")),
     ]
+}
+
+function getSpacingClasses(element: UIElement) {
+    let ret: string[] = []
+
+    function parseSpacing(input: string, type: "p" | "m") {
+        const entries = unzip(input, v => isAlpha(v))
+        for (const [direction, value] of entries) {
+            ret.push(type + (direction == "a" ? "" : direction) + "-" + value.join(""))
+        }
+    }
+
+    if (element.margin) parseSpacing(element.margin, "m")
+    if (element.padding) parseSpacing(element.padding, "p")
+
+    return ret.join(" ")
 }
 
 interface ElementProps<T> {
     element: T
+}
+
+function useFormModel(session: Ref<RemoteUISessionHandle>, modelFactory: () => string) {
+    const model = computed(() => parseModelID(modelFactory()))
+
+    return computed({
+        get: () => {
+            let target = session.value.forms[model.value.form]
+            for (let segment of model.value.path) {
+                target = target[segment]
+            }
+
+            return target
+        },
+        set: value => {
+            let target = session.value.forms[model.value.form]
+            const path = cloneArray(model.value.path)
+            const final = path.pop()!
+
+            for (let segment of path) {
+                target = target[segment]
+            }
+
+            target[final] = value
+        }
+    })
+}
+
+function runAction(session: Ref<RemoteUISessionHandle>, actionID: string, sender: string | null | undefined) {
+    const action = parseActionID(actionID)
+    let promise: Promise<void>
+    if (action.type == "action") {
+        promise = session.value.triggerAction(actionID, null, sender)
+    } else if (action.type == "form") {
+        const form = session.value.forms[action.form]
+        promise = session.value.triggerAction(actionID, form, sender)
+    } else unreachable()
+
+    if (action.waitForCompletion) {
+        session.value.loading++
+        promise.then(() => {
+            session.value.loading--
+        }, error => {
+            session.value.loading--
+            // eslint-disable-next-line no-console
+            console.error(error)
+            session.value.error = stringifyError(error)
+        })
+    }
 }
 
 const UI_ELEMENT_SETUP: Record<keyof typeof UI.InternalTypes, (element: any) => () => any> = {
@@ -31,27 +102,7 @@ const UI_ELEMENT_SETUP: Record<keyof typeof UI.InternalTypes, (element: any) => 
         const session = inject(SESSION_KEY)!
 
         function click() {
-            const actionID = props.element.onClick!
-            const action = parseActionID(actionID)
-            let promise: Promise<void>
-            if (action.type == "action") {
-                promise = session.value.triggerAction(actionID, null, props.element.name)
-            } else if (action.type == "form") {
-                const form = session.value.forms[action.form]
-                promise = session.value.triggerAction(actionID, form, props.element.name)
-            } else unreachable()
-
-            if (action.waitForCompletion) {
-                session.value.loading++
-                promise.then(() => {
-                    session.value.loading--
-                }, error => {
-                    session.value.loading--
-                    // eslint-disable-next-line no-console
-                    console.error(error)
-                    session.value.error = stringifyError(error)
-                })
-            }
+            runAction(session, props.element.onClick!, props.element.name)
         }
 
         return () => (
@@ -65,7 +116,7 @@ const UI_ELEMENT_SETUP: Record<keyof typeof UI.InternalTypes, (element: any) => 
     Label: (props: ElementProps<UI.InternalTypes.Label>) => {
 
         return () => (
-            <span>{props.element.text}</span>
+            h(props.element.size ?? "span", {}, props.element.text)
         )
     },
     Frame: (props: ElementProps<UI.InternalTypes.Frame>) => {
@@ -81,19 +132,64 @@ const UI_ELEMENT_SETUP: Record<keyof typeof UI.InternalTypes, (element: any) => 
     Input: (props: ElementProps<UI.InternalTypes.Input>) => {
         const session = inject(SESSION_KEY)!
 
-        const model = computed(() => props.element.model.split("_"))
+        const model = useFormModel(session, () => props.element.model)
 
         return () => (
-            <TextField vModel={session.value.forms[model.value[0]][model.value[1]]} />
+            <TextField vModel={model.value} />
         )
     },
-    Output: (props: ElementProps<UI.InternalTypes.Input>) => {
+    Checkbox: (props: ElementProps<UI.InternalTypes.Checkbox>) => {
         const session = inject(SESSION_KEY)!
 
-        const model = computed(() => props.element.model.split("_"))
+        const model = useFormModel(session, () => props.element.model)
+
+        function changed(event: Event) {
+            const target = event.target as HTMLInputElement
+            const value = target.checked
+
+            model.value = value
+            if (props.element.onChange != null) runAction(session, props.element.onChange, props.element.name)
+        }
 
         return () => (
-            <span>{session.value.forms[model.value[0]][model.value[1]]}</span>
+            <input type="checkbox" checked={model.value} onChange={changed} />
+        )
+    },
+    Output: (props: ElementProps<UI.InternalTypes.Output>) => {
+        const session = inject(SESSION_KEY)!
+
+        const model = useFormModel(session, () => props.element.model)
+
+        return () => (
+            <span>{model.value}</span>
+        )
+    },
+    Editable: (props: ElementProps<UI.InternalTypes.Editable>) => {
+        const session = inject(SESSION_KEY)!
+        const emitter = useDynamicsEmitter()
+
+        const model = useFormModel(session, () => props.element.model)
+        async function edit(event: MouseEvent) {
+            const target = event.target as HTMLElement
+            const width = target.getBoundingClientRect().width
+            const value = ref(model.value)
+            const prompt = emitter.popup(target, () => (
+                <TextField focus class="w-min-200" style={{ width: width + "px" }} vModel={value.value} />
+            ), {
+                align: "over",
+                props: {
+                    backdropCancels: true
+                }
+            })
+
+            if (await prompt) {
+                model.value = value.value
+                if (props.element.onChange != null) runAction(session, props.element.onChange, props.element.name)
+            }
+        }
+
+        return () => (
+            <Button class="text-left" onClick={edit} clear>{model.value}</Button>
         )
     }
 }
@@ -123,7 +219,9 @@ const UIElementView = defineComponent({
                     props.element.fontColor && `text-${props.element.fontColor}`,
                     props.element.fill && `flex-fill`,
                     props.element.monospace && `monospace`,
-                    props.element.muted && `muted`
+                    props.element.muted && `muted`,
+                    props.element.basis && `flex-basis-${props.element.basis}`,
+                    getSpacingClasses(props.element)
                 ]
             })
         )

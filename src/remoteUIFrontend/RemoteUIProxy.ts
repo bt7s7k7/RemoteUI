@@ -1,6 +1,7 @@
 import { markRaw, reactive } from "vue"
 import { RemoteUIContract, Route } from "../remoteUICommon/RemoteUI"
 import { UIElement } from "../remoteUICommon/UIElement"
+import { MutationUtil } from "../structSync/MutationUtil"
 
 export class RemoteUISessionHandle {
     public open = true
@@ -67,11 +68,21 @@ export class RemoteUIProxy extends RemoteUIContract.defineProxy() {
             sessionHandle.root = root
         })
 
-        this.onFormUpdate.add(null, ({ form, session, data }) => {
+        this.onFormSet.add(null, ({ form, session, data }) => {
             const sessionHandle = this.sessions.get(session)
             if (!sessionHandle) return
 
             sessionHandle.forms[form] = data
+        })
+
+        this.onFormUpdate.add(null, ({ form, session, mutations }) => {
+            const sessionHandle = this.sessions.get(session)
+            if (!sessionHandle) return
+
+            const formData = sessionHandle.forms[form]
+            for (const mutation of mutations) {
+                MutationUtil.applyMutation(formData, null, mutation)
+            }
         })
 
         return self

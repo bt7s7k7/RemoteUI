@@ -106,10 +106,17 @@ export class Route extends Struct.define("Route", {
 const FormData_t = Type.passthrough(null as any)
 export const RemoteUIContract = StructSyncContract.define(class RemoteUI extends Struct.define("RemoteUI", {}) { }, {
     openSession: ActionType.define("openSession", Type.object({ route: Route.ref() }), Type.object({ session: Type.string, root: UIElement_t, forms: FormData_t.as(Type.record) })),
+    renderSession: ActionType.define("rendedSession", Type.object({ session: Type.string, slot: Type.string.as(Type.nullable) }), UIElement_t),
     closeSession: ActionType.define("closeSession", Type.object({ session: Type.string }), Type.empty),
     triggerAction: ActionType.define("triggerAction", Type.object({ session: Type.string, action: Type.string, form: FormData_t, sender: Type.string.as(Type.nullable) }), Type.empty)
 }, {
     onSessionUpdate: EventType.define("onSessionUpdate", Type.object({ session: Type.string, root: UIElement_t })),
-    onFormUpdate: EventType.define("onFormUpdate", Type.object({ session: Type.string, form: Type.string, data: FormData_t })),
+    onFormSet: EventType.define("onFormSet", Type.object({ session: Type.string, form: Type.string, data: FormData_t })),
+    onFormUpdate: EventType.define("onFormUpdate", Type.object({ session: Type.string, form: Type.string, mutations: FormData_t.as(Type.array) })),
     onSessionClosed: EventType.define("onSessionClosed", Type.object({ session: Type.string }))
 })
+
+declare const TYPE_MARKER: unique symbol
+export interface FormModelProperty<T> {
+    [TYPE_MARKER]: T
+}

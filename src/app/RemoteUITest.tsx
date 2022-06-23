@@ -1,21 +1,28 @@
-import { defineComponent, shallowRef } from "vue"
-import { delayedPromise } from "../comTypes/util"
+import { computed, defineComponent, shallowRef } from "vue"
+import { useRoute, useRouter } from "vue-router"
+import { camelToTitleCase } from "../comTypes/util"
 import { IDProvider } from "../dependencyInjection/commonServices/IDProvider"
 import { MessageBridge } from "../dependencyInjection/commonServices/MessageBridge"
 import { DIContext } from "../dependencyInjection/DIContext"
 import { RemoteUIController, RouteResolver } from "../remoteUIBackend/RemoteUIController"
-import { defineRouteController } from "../remoteUIBackend/RouteController"
-import { UI } from "../remoteUICommon/UIElement"
 import { RemoteUIProxy } from "../remoteUIFrontend/RemoteUIProxy"
 import { RemoteUIView } from "../remoteUIFrontend/RemoteUIView"
-import { Type } from "../struct/Type"
 import { StructSyncClient } from "../structSync/StructSyncClient"
-import { ClientError, StructSyncServer } from "../structSync/StructSyncServer"
+import { StructSyncServer } from "../structSync/StructSyncServer"
 import { StructSyncSession } from "../structSync/StructSyncSession"
+import { Button } from "../vue3gui/Button"
+
+const routesList = Object.entries(import.meta.globEager("./routes/*.ts")).map(([name, module]) => {
+    name = name.match(/^\.\/routes\/([^.]*)/)![1]
+    return [name, module["default"]]
+})
 
 export const RemoteUITest = (defineComponent({
     name: "RemoteUITest",
     setup(props, ctx) {
+        const route = useRoute()
+        const router = useRouter()
+
         const context = new DIContext()
         context.provide(IDProvider, () => new IDProvider.Incremental())
         context.provide(MessageBridge, () => new MessageBridge.Dummy())
@@ -29,77 +36,27 @@ export const RemoteUITest = (defineComponent({
             proxy.value = v
         })
 
-        controller.routes = new RouteResolver.Static({
-            routes: {
-                index: defineRouteController(ctx => {
-                    let count = 0
+        const routes = controller.routes = new RouteResolver.Static({
+            routes: Object.fromEntries(routesList)
+        })
 
-                    const increment = ctx.action("increment", async (event) => {
-                        await delayedPromise(100)
-
-                        count++
-                        ctx.controller.update()
-                    }, { waitForCompletion: true })
-
-                    const form = ctx.form("form", Type.object({ hello: Type.string, output: Type.string }))
-                    const submitForm = form.action("submit", event => {
-                        form.update(event.session, { ...event.data, output: event.data.hello.toUpperCase() })
-                    })
-
-                    const throwError = ctx.action("throwError", async () => {
-                        throw new ClientError("This is an error!")
-                    }, { waitForCompletion: true })
-
-                    return () => (
-                        UI.frame({
-                            axis: "column",
-                            gap: 2,
-                            children: [
-                                UI.frame({
-                                    axis: "row",
-                                    gap: 2,
-                                    children: [
-                                        UI.input({
-                                            model: form.model.hello,
-                                            fill: true
-                                        }),
-                                        UI.button({
-                                            text: "Submit",
-                                            onClick: submitForm
-                                        })
-                                    ]
-                                }),
-                                UI.output({
-                                    model: form.model.output
-                                }),
-                                UI.frame({
-                                    axis: "row",
-                                    gap: 2,
-                                    children: [
-                                        UI.label({
-                                            text: `Count: ${count}`
-                                        }),
-                                        UI.button({
-                                            text: "Increment",
-                                            onClick: increment.id
-                                        }),
-                                        UI.button({
-                                            text: "Throw",
-                                            onClick: throwError.id
-                                        })
-                                    ]
-                                })
-                            ]
-                        })
-                    )
-                })
-            }
+        const selectedRoute = computed({
+            get: () => (route.query["selected"] as string | undefined) ?? "/" + routesList[0][0],
+            set: (v) => router.replace({ query: { selected: v } })
         })
 
         return () => (
-            <div class="p-4">
-                <div class="w-500 h-500 border flex">
-                    {proxy.value ? <RemoteUIView class="flex-fill" route="/" remoteUI={proxy.value} /> : "Loading..."}
+            <div class="p-4 flex-fill flex row gap-2">
+                <div class="flex-basis-500 p-2 rounded border flex">
+                    {proxy.value ? <RemoteUIView class="flex-fill" route={selectedRoute.value} remoteUI={proxy.value} /> : "Loading..."}
+                </div>
+                <div class="flex-basis-500 p-2 rounded border flex">
+                    {proxy.value ? <RemoteUIView class="flex-fill" route={selectedRoute.value} remoteUI={proxy.value} /> : "Loading..."}
+                </div>
+                <div class="flex flex-basis-100 column">
+                    {Object.keys(routes.options.routes!).map(key => (
+                        <Button class="text-left" clear onClick={() => selectedRoute.value = "/" + key}>{camelToTitleCase(key)}</Button>
+                    ))}
                 </div>
             </div>
         )

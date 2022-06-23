@@ -1,15 +1,19 @@
 import { AUTO_DISPOSE, Disposable, DISPOSE } from "../eventLib/Disposable"
 import { WeakRef } from "../eventLib/SharedRef"
+import { FormModelProperty } from "../remoteUICommon/RemoteUI"
 import { MetaActionType, parseActionID, UIElement } from "../remoteUICommon/UIElement"
 import { Type } from "../struct/Type"
+import { MutationUtil } from "../structSync/MutationUtil"
+import { StructSyncMessages } from "../structSync/StructSyncMessages"
 import { ClientError } from "../structSync/StructSyncServer"
 import { RemoteUISession } from "./RemoteUIController"
 
-interface ActionEvent {
+export interface ActionEvent {
     session: RemoteUISession
+    sender: string | null | undefined
 }
 
-interface FormEvent<T> extends ActionEvent {
+export interface FormEvent<T> extends ActionEvent {
     data: T
 }
 
@@ -29,8 +33,9 @@ type FormActionCallback<T> = (event: FormEvent<T>) => void | Promise<void>
 interface FormHandle<T> {
     id: string
     action(name: string, callback: FormActionCallback<T>, options?: { waitForCompletion?: boolean }): ActionHandle
-    model: Record<keyof T, string>
-    update(session: RemoteUISession, data: T): void
+    model: { [P in keyof T]: FormModelProperty<T[P]> & string }
+    set(session: RemoteUISession | "all", data: T): void
+    update(session: RemoteUISession | "all", mutation: ((v: T) => void) | StructSyncMessages.AnyMutateMessage | StructSyncMessages.AnyMutateMessage[]): void
 }
 
 type ActionCallback = (event: ActionEvent) => void | Promise<void>
@@ -42,12 +47,14 @@ interface RouteControllerContext {
     controller: RouteController
 }
 
+type RenderFunction = (session: RemoteUISession) => UIElement
+
 export class RouteController extends Disposable {
     public [AUTO_DISPOSE] = true
     protected sessions = new Set<WeakRef<RemoteUISession>>()
 
     public [DISPOSE]() {
-        for (const session of this.iterateSessions()) {
+        for (const session of this.getSessions()) {
             session.close()
         }
 
@@ -64,8 +71,8 @@ export class RouteController extends Disposable {
         return forms
     }
 
-    public makeUI(session: RemoteUISession) {
-        return this.render(session)
+    public render(session: RemoteUISession, slot: string | null) {
+        return this.defaultSlot(session)
     }
 
     public async handleAction(session: RemoteUISession, actionID: string, formData: any, sender: string | null | undefined) {
@@ -74,7 +81,7 @@ export class RouteController extends Disposable {
         if (actionData.type == "action") {
             const action = this.actions.get(actionData.action)
             if (!action) throw new ClientError(`Invalid action "${actionID}"`)
-            await action({ session })
+            await action({ session, sender })
         } else if (actionData.type == "form") {
             const form = this.forms.get(actionData.form)
             if (!form) throw new ClientError(`Invalid action "${actionID}"`)
@@ -83,11 +90,11 @@ export class RouteController extends Disposable {
 
             const verifiedFormData = form.type.deserialize(formData)
 
-            await action({ session, data: verifiedFormData })
+            await action({ session, data: verifiedFormData, sender })
         } else throw new ClientError(`Cannot trigger meta action on backend (was "${actionID}")`)
     }
 
-    protected *iterateSessions() {
+    public *getSessions() {
         for (const sessionRef of this.sessions) {
             if (!sessionRef.alive) {
                 this.sessions.delete(sessionRef)
@@ -99,27 +106,29 @@ export class RouteController extends Disposable {
     }
 
     public update() {
-        for (const session of this.iterateSessions()) {
+        for (const session of this.getSessions()) {
             session.update()
         }
     }
 
     public updateForm(form: string, data: any) {
-        for (const session of this.iterateSessions()) {
-            session.updateForm(form, data)
+        for (const session of this.getSessions()) {
+            session.setForm(form, data)
         }
     }
 
     constructor(
         protected readonly actions: Map<string, ActionCallback>,
         protected readonly forms: Map<string, FormDefinition>,
-        protected readonly render: (session: RemoteUISession) => UIElement
+        protected readonly defaultSlot: RenderFunction,
+        protected readonly slots: Map<string, RenderFunction>
     ) { super() }
 }
 
-export function defineRouteController(setup: (ctx: RouteControllerContext) => (session: RemoteUISession) => UIElement) {
+export function defineRouteController(setup: (ctx: RouteControllerContext) => RenderFunction) {
     const actions = new Map<string, ActionCallback>()
     const forms = new Map<string, FormDefinition>()
+    const slots = new Map<string, RenderFunction>()
 
     const ctx: RouteControllerContext = {
         action(name, callback, options = {}) {
@@ -152,8 +161,29 @@ export function defineRouteController(setup: (ctx: RouteControllerContext) => (s
                     return { id }
                 },
                 model: Object.fromEntries(type.propList.map(([key]) => [key, form.id + "_" + key])) as any,
-                update(session, data) {
-                    session.updateForm(form.id, data)
+                set(session, data) {
+                    if (session == "all") {
+                        for (const session of controller.getSessions()) {
+                            session.setForm(form.id, data)
+                        }
+                    } else {
+                        session.setForm(form.id, data)
+                    }
+                },
+                update(session, mutations) {
+                    if (typeof mutations == "function") {
+                        mutations = MutationUtil.runMutationThunk("", null, type, mutations)
+                    } else if (!(mutations instanceof Array)) {
+                        mutations = [mutations]
+                    }
+
+                    if (session == "all") {
+                        for (const session of controller.getSessions()) {
+                            session.updateForm(form.id, mutations)
+                        }
+                    } else {
+                        session.updateForm(form.id, mutations)
+                    }
                 }
             }
         },
@@ -166,7 +196,7 @@ export function defineRouteController(setup: (ctx: RouteControllerContext) => (s
 
     const render = setup(ctx)
 
-    const controller = new RouteController(actions, forms, render)
+    const controller = new RouteController(actions, forms, render, slots)
     ctx.controller = controller
     return controller
 }
