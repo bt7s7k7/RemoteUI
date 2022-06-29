@@ -10,7 +10,10 @@ interface FormRenderSettings {
     onChange?: string | { id: string },
     readonly?: boolean,
     renderChildren?: boolean
-    childRenderOverrides?: FormRenderSettings
+    childProps?: FormRenderSettings
+    childOverrides?: Record<string, FormRenderSettings>
+    blacklist?: string[]
+    whitelist?: string[]
 }
 
 type FieldRenderer = (model: string, readonly: boolean, onChange: string | { id: string } | null | undefined, name: string) => UIElement
@@ -106,6 +109,9 @@ export class FormRenderer<T extends Type.ObjectType = Type.ObjectType> {
         const fields: Field[] = []
 
         for (const [prop, propType] of this.options.type.propList) {
+            if (this.options.whitelist && !this.options.whitelist.includes(prop)) continue
+            if (this.options.blacklist && this.options.blacklist.includes(prop)) continue
+
             let renderer = FIELD_RENDERERS.get(propType)
             const label = camelToTitleCase(prop)
             if (renderer) {
@@ -114,8 +120,12 @@ export class FormRenderer<T extends Type.ObjectType = Type.ObjectType> {
             }
 
             if (Type.isObject(propType) && this.options.renderChildren) {
+                const overrides = this.options.childOverrides?.[prop]
+
                 const renderer = ensureKey(this.childRendererCache, prop, () => new FormRenderer({
-                    ...this.options, ...this.options.childRenderOverrides,
+                    ...this.options, ...this.options.childProps,
+                    childOverrides: undefined, blacklist: undefined, whitelist: undefined,
+                    ...overrides,
                     model: this.childPrefix + prop, type: propType, name: this.namePrefix + prop
                 }))
 
