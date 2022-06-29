@@ -13,7 +13,7 @@ interface FormRenderSettings {
     childRenderOverrides?: FormRenderSettings
 }
 
-type FieldRenderer = (model: string, onChange: string | { id: string } | null | undefined, name: string) => UIElement
+type FieldRenderer = (model: string, readonly: boolean, onChange: string | { id: string } | null | undefined, name: string) => UIElement
 
 interface Field {
     key: string
@@ -27,13 +27,17 @@ export function setCustomFieldRenderer(type: Type<any>, render: FieldRenderer) {
     FIELD_RENDERERS.set(type, render)
 }
 
-setCustomFieldRenderer(Type.string, (model, onChange, name) => onChange == null ? (
-    UI.input({ model, fill: true })
-) : (
-    UI.editable({ model, onChange, name, fill: true })
+setCustomFieldRenderer(Type.string, (model, readonly, onChange, name) => (
+    readonly == true ? (
+        UI.output({ model })
+    ) : onChange == null ? (
+        UI.input({ model, fill: true })
+    ) : (
+        UI.editable({ model, onChange, name, fill: true })
+    )
 ))
 
-setCustomFieldRenderer(Type.boolean, (model, onChange, name) => UI.checkbox({ model, onChange, name }))
+setCustomFieldRenderer(Type.boolean, (model, readonly, onChange, name) => UI.checkbox({ model, onChange, name, readonly }))
 
 const DEFAULT_LABEL_SIZE = 100
 export class FormRenderer<T extends Type.ObjectType = Type.ObjectType> {
@@ -58,7 +62,7 @@ export class FormRenderer<T extends Type.ObjectType = Type.ObjectType> {
 
         for (const { key, label, renderer } of fields) {
             if (typeof renderer == "function") {
-                const field = renderer(this.childPrefix + key, this.options.onChange, this.namePrefix + key)
+                const field = renderer(this.childPrefix + key, this.options.readonly ?? false, this.options.onChange, this.namePrefix + key)
 
                 if (this.options.noLabels) {
                     result.push(field)

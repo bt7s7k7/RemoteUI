@@ -130,6 +130,7 @@ export namespace UI {
             model: Type.string,
             onChange: Type.string.as(Type.nullable),
             name: Type.string.as(Type.nullable),
+            readonly: Type.boolean.as(Type.nullable),
             ...positionProps,
             ...styleProps
         }) { }

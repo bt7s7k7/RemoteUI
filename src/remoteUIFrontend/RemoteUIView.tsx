@@ -1,4 +1,4 @@
-import { mdiAlert } from "@mdi/js"
+import { mdiAlert, mdiCheckboxBlankOutline, mdiCheckboxMarked } from "@mdi/js"
 import { computed, defineComponent, h, inject, InjectionKey, PropType, provide, reactive, Ref, ref, watch } from "vue"
 import { cloneArray, isAlpha, unreachable, unzip } from "../comTypes/util"
 import { Route } from "../remoteUICommon/RemoteUI"
@@ -200,7 +200,15 @@ const UI_ELEMENT_SETUP: Record<keyof typeof UI.InternalTypes, (element: any) => 
         }
 
         return () => (
-            <input type="checkbox" checked={model.value} onChange={changed} />
+            props.element.readonly ? (
+                model.value ? (
+                    <Icon icon={mdiCheckboxMarked} />
+                ) : (
+                    <Icon icon={mdiCheckboxBlankOutline} />
+                )
+            ) : (
+                <input type="checkbox" checked={model.value} onChange={changed} />
+            )
         )
     },
     Output: (props: ElementProps<UI.InternalTypes.Output>) => {
