@@ -38,7 +38,7 @@ export class RemoteUISession extends EventListener {
     }
 
     public update() {
-        this.controller.onSessionUpdate.emit({ session: this.id, root: this.routeController.render(this, null) })
+        this.controller.onSessionUpdate.emit({ session: this.id, root: this.routeController.render(this, Route.ROOT) })
     }
 
     public close() {
@@ -137,14 +137,14 @@ export class RemoteUIController extends RemoteUIContract.defineController() {
             return {
                 session: session.id,
                 forms: controller.makeForms(),
-                root: controller.render(session, null)
+                root: controller.render(session, Route.ROOT)
             }
         },
         renderSession: async ({ session: sessionID, slot }) => {
             const session = this.sessions.get(sessionID)
             if (!session) throw new ClientError(`Session "${sessionID}" not found`)
 
-            return session.routeController.render(session, slot ?? null)
+            return session.routeController.render(session, Route.ROOT)
         },
         triggerAction: async ({ action, session: sessionID, form, sender }) => {
             const session = this.sessions.get(sessionID)

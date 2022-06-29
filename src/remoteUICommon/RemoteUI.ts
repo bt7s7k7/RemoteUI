@@ -1,12 +1,13 @@
 import { isWord } from "../comTypes/util"
 import { Struct } from "../struct/Struct"
-import { Type } from "../struct/Type"
+import { SerializationError, Type } from "../struct/Type"
 import { ActionType } from "../structSync/ActionType"
 import { EventType } from "../structSync/EventType"
 import { StructSyncContract } from "../structSync/StructSyncContract"
+import { ThemeSwitch } from "../vue3gui/ThemeSwitch"
 import { UIElement_t } from "./UIElement"
 
-export class RouteParseError extends Error {
+export class RouteParseError extends SerializationError {
     public name = "RouteParseError"
 }
 
@@ -14,23 +15,38 @@ function isRouteSegment(char: string) {
     return isWord(char) || char == "-" || char == "%" || char == "."
 }
 
-export class Route extends Struct.define("Route", {
-    segments: Type.string.as(Type.array),
-    query: Type.string.as(Type.record),
-    component: Type.string.as(Type.nullable)
-}) {
+export class Route {
+    public segments: string[]
+    public query: Record<string, string>
+    public component: string | null
+
+    public getPath() {
+        return "/" + this.segments.map(v => encodeURIComponent(v)).join("/")
+    }
+
     public toString() {
         const queryEntries = Object.entries(this.query)
         return (
-            "/"
-            + this.segments.map(v => encodeURIComponent(v)).join("/")
+            this.getPath()
             + (this.component ? "@" + encodeURIComponent(this.component) : "")
             + (queryEntries.length > 0 ? "?" + queryEntries.map(v => encodeURIComponent(v[0]) + "=" + encodeURIComponent(v[1])).join("&") : "")
         )
     }
 
+    constructor(input?: Route) {
+        if (input == undefined) {
+            this.component = null
+            this.query = {}
+            this.segments = []
+        } else {
+            this.component = input.component
+            this.query = { ...input.query }
+            this.segments = [...input.segments]
+        }
+    }
+
     public static parse(input: string, base: Route | null = null) {
-        const route = base == null ? Route.default() : Type.clone(Route.ref(), base)
+        const route = base == null ? new Route() : new Route(base)
 
         let index = 0
         let isQuery = false
@@ -101,12 +117,26 @@ export class Route extends Struct.define("Route", {
 
         return route
     }
+
+    public static readonly ROOT = Route.parse("/")
 }
+
+export const Route_t = Type.createType<Route>({
+    default: () => new Route(),
+    deserialize(source) {
+        return Route.parse(source)
+    },
+    serialize(route) {
+        return route.toString()
+    },
+    name: "Route",
+    getDefinition(indent) { return indent + this.name }
+})
 
 const FormData_t = Type.passthrough(null as any)
 export const RemoteUIContract = StructSyncContract.define(class RemoteUI extends Struct.define("RemoteUI", {}) { }, {
-    openSession: ActionType.define("openSession", Type.object({ route: Route.ref() }), Type.object({ session: Type.string, root: UIElement_t, forms: FormData_t.as(Type.record) })),
-    renderSession: ActionType.define("rendedSession", Type.object({ session: Type.string, slot: Type.string.as(Type.nullable) }), UIElement_t),
+    openSession: ActionType.define("openSession", Type.object({ route: Route_t }), Type.object({ session: Type.string, root: UIElement_t, forms: FormData_t.as(Type.record) })),
+    renderSession: ActionType.define("rendedSession", Type.object({ session: Type.string, slot: Route_t }), UIElement_t),
     closeSession: ActionType.define("closeSession", Type.object({ session: Type.string }), Type.empty),
     triggerAction: ActionType.define("triggerAction", Type.object({ session: Type.string, action: Type.string, form: FormData_t, sender: Type.string.as(Type.nullable) }), Type.empty)
 }, {

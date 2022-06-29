@@ -1,11 +1,12 @@
 import { AUTO_DISPOSE, Disposable, DISPOSE } from "../eventLib/Disposable"
 import { WeakRef } from "../eventLib/SharedRef"
-import { FormModelProperty } from "../remoteUICommon/RemoteUI"
-import { MetaActionType, parseActionID, UIElement } from "../remoteUICommon/UIElement"
+import { FormModelProperty, Route } from "../remoteUICommon/RemoteUI"
+import { MetaActionType, parseActionID, UI, UIElement } from "../remoteUICommon/UIElement"
 import { Type } from "../struct/Type"
 import { MutationUtil } from "../structSync/MutationUtil"
 import { StructSyncMessages } from "../structSync/StructSyncMessages"
 import { ClientError } from "../structSync/StructSyncServer"
+import { FormRenderer } from "./FormRenderer"
 import { RemoteUISession } from "./RemoteUIController"
 
 export interface ActionEvent {
@@ -48,6 +49,7 @@ interface RouteControllerContext {
 }
 
 type RenderFunction = (session: RemoteUISession) => UIElement
+type SlotFunction = (session: RemoteUISession, slot: Route) => UIElement
 
 export class RouteController extends Disposable {
     public [AUTO_DISPOSE] = true
@@ -71,8 +73,19 @@ export class RouteController extends Disposable {
         return forms
     }
 
-    public render(session: RemoteUISession, slot: string | null) {
-        return this.defaultSlot(session)
+    public render(session: RemoteUISession, slot: Route) {
+        const slotName = slot.getPath()
+        if (slotName == "/") return this.defaultSlot(session)
+
+        const slotRenderer = this.slots.get(slotName)
+        if (!slotRenderer) return (
+            UI.label({
+                text: "Invalid slot: " + slot.toString(),
+                monospace: true
+            })
+        )
+
+        return slotRenderer(session, slot)
     }
 
     public async handleAction(session: RemoteUISession, actionID: string, formData: any, sender: string | null | undefined) {
@@ -121,14 +134,14 @@ export class RouteController extends Disposable {
         protected readonly actions: Map<string, ActionCallback>,
         protected readonly forms: Map<string, FormDefinition>,
         protected readonly defaultSlot: RenderFunction,
-        protected readonly slots: Map<string, RenderFunction>
+        protected readonly slots: Map<string, SlotFunction>
     ) { super() }
 }
 
 export function defineRouteController(setup: (ctx: RouteControllerContext) => RenderFunction) {
     const actions = new Map<string, ActionCallback>()
     const forms = new Map<string, FormDefinition>()
-    const slots = new Map<string, RenderFunction>()
+    const slots = new Map<string, SlotFunction>()
 
     const ctx: RouteControllerContext = {
         action(name, callback, options = {}) {

@@ -1,5 +1,5 @@
+import { formEventToMutation, FormRenderer } from "../../remoteUIBackend/FormRenderer"
 import { defineRouteController } from "../../remoteUIBackend/RouteController"
-import { formEventToMutation, renderForm } from "../../remoteUIBackend/util"
 import { UI } from "../../remoteUICommon/UIElement"
 import { Type } from "../../struct/Type"
 
@@ -36,11 +36,13 @@ export default defineRouteController(ctx => {
         form.update("all", v => v.person.name = Date.now().toString())
     })
 
+    const formRenderer = new FormRenderer({ type: Person_t, model: form.model.person, renderChildren: true, onChange: submit })
+
     return () => (
         UI.frame({
             axis: "column",
             children: [
-                renderForm({ type: Person_t, model: form.model.person, renderChildren: true, onChange: submit }),
+                formRenderer.renderFrame(),
                 UI.frame({
                     axis: "row",
                     children: [

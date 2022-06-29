@@ -1,5 +1,5 @@
 import { mdiAlert } from "@mdi/js"
-import { computed, defineComponent, h, inject, InjectionKey, PropType, provide, Ref, ref, watch } from "vue"
+import { computed, defineComponent, h, inject, InjectionKey, PropType, provide, reactive, Ref, ref, watch } from "vue"
 import { cloneArray, isAlpha, unreachable, unzip } from "../comTypes/util"
 import { Route } from "../remoteUICommon/RemoteUI"
 import { parseActionID, parseModelID, UI, UIElement } from "../remoteUICommon/UIElement"
@@ -15,6 +15,7 @@ import { RemoteUIProxy, RemoteUISessionHandle } from "./RemoteUIProxy"
 
 const REMOTE_UI_KEY: InjectionKey<RemoteUIProxy> = Symbol("remoteUI")
 const SESSION_KEY: InjectionKey<Ref<RemoteUISessionHandle>> = Symbol("remoteUISession")
+const FORM_OVERRIDE_KEY: InjectionKey<Record<string, string>> = Symbol("formOverride")
 
 function getLayoutClasses(element: Omit<UI.InternalTypes.Frame, "children">) {
     return [
@@ -48,10 +49,34 @@ interface ElementProps<T> {
     element: T
 }
 
-function useFormModel(session: Ref<RemoteUISessionHandle>, modelFactory: () => string) {
-    const model = computed(() => parseModelID(modelFactory()))
+function useModel(session: Ref<RemoteUISessionHandle>, modelFactory: () => string, ignoreErrors?: boolean) {
+    const overrides = inject(FORM_OVERRIDE_KEY)!
+    const model = computed(() => {
+        const id = modelFactory()
+        try {
+            let model = parseModelID(id)
+            while (model.form in overrides) {
+                const override = overrides[model.form]
+                const newModel = parseModelID(override)
+                model = { form: newModel.form, path: newModel.path.concat(model.path), id: null! }
+            }
 
-    return computed({
+            model.id = model.form + "_" + model.path.join(".")
+
+            return model
+        } catch (error) {
+            if (ignoreErrors) return { form: "", path: [], id }
+            else throw error
+        }
+    })
+
+    return model
+}
+
+function useFormModel(session: Ref<RemoteUISessionHandle>, modelFactory: () => string) {
+    const model = useModel(session, modelFactory)
+
+    const value = computed({
         get: () => {
             let target = session.value.forms[model.value.form]
             for (let segment of model.value.path) {
@@ -72,44 +97,66 @@ function useFormModel(session: Ref<RemoteUISessionHandle>, modelFactory: () => s
             target[final] = value
         }
     })
+
+    return reactive({ value, model })
 }
 
-function runAction(session: Ref<RemoteUISessionHandle>, actionID: string, sender: string | null | undefined) {
-    const action = parseActionID(actionID)
-    let promise: Promise<void>
-    if (action.type == "action") {
-        promise = session.value.triggerAction(actionID, null, sender)
-    } else if (action.type == "form") {
-        const form = session.value.forms[action.form]
-        promise = session.value.triggerAction(actionID, form, sender)
-    } else unreachable()
+function useAction(session: Ref<RemoteUISessionHandle>, actionFactory: () => string | null | undefined, senderFactory: () => string | null | undefined) {
+    const action = computed(() => {
+        const id = actionFactory()
+        if (id == null) return null
+        return parseActionID(id)
+    })
+    const sender = useModel(session, () => senderFactory()!, true)
 
-    if (action.waitForCompletion) {
-        session.value.loading++
-        promise.then(() => {
-            session.value.loading--
-        }, error => {
-            session.value.loading--
-            // eslint-disable-next-line no-console
-            console.error(error)
-            session.value.error = stringifyError(error)
-        })
+    return () => {
+        if (action.value == null) return
+
+        let promise: Promise<void>
+        if (action.value.type == "action") {
+            promise = session.value.triggerAction(action.value.id, null, sender.value.id)
+        } else if (action.value.type == "form") {
+            const form = session.value.forms[action.value.form]
+            promise = session.value.triggerAction(action.value.id, form, sender.value.id)
+        } else unreachable()
+
+        if (action.value.waitForCompletion) {
+            session.value.loading++
+            promise.then(() => {
+                session.value.loading--
+            }, error => {
+                session.value.loading--
+                // eslint-disable-next-line no-console
+                console.error(error)
+                session.value.error = stringifyError(error)
+            })
+        }
     }
 }
+
+const ProvideUtil = defineComponent({
+    name: "ProvideUtil",
+    props: {
+        provideKey: { type: null, required: true },
+        value: { type: null, required: true }
+    },
+    setup(props, ctx) {
+        provide(props.provideKey, props.value)
+
+        return () => <>{ctx.slots.default?.()}</>
+    }
+})
 
 const UI_ELEMENT_SETUP: Record<keyof typeof UI.InternalTypes, (element: any) => () => any> = {
     Button: (props: ElementProps<UI.InternalTypes.Button>) => {
         const session = inject(SESSION_KEY)!
-
-        function click() {
-            runAction(session, props.element.onClick!, props.element.name)
-        }
+        const click = useAction(session, () => props.element.onClick, () => props.element.name)
 
         return () => (
             <Button
                 variant={props.element.variant ?? undefined}
                 clear={props.element.clear ?? undefined}
-                onClick={props.element.onClick ? click : undefined}
+                onClick={click}
             >{props.element.text}</Button>
         )
     },
@@ -142,13 +189,14 @@ const UI_ELEMENT_SETUP: Record<keyof typeof UI.InternalTypes, (element: any) => 
         const session = inject(SESSION_KEY)!
 
         const model = useFormModel(session, () => props.element.model)
+        const submit = useAction(session, () => props.element.onChange, () => props.element.name)
 
         function changed(event: Event) {
             const target = event.target as HTMLInputElement
             const value = target.checked
 
             model.value = value
-            if (props.element.onChange != null) runAction(session, props.element.onChange, props.element.name)
+            submit()
         }
 
         return () => (
@@ -167,6 +215,7 @@ const UI_ELEMENT_SETUP: Record<keyof typeof UI.InternalTypes, (element: any) => 
     Editable: (props: ElementProps<UI.InternalTypes.Editable>) => {
         const session = inject(SESSION_KEY)!
         const emitter = useDynamicsEmitter()
+        const submit = useAction(session, () => props.element.onChange, () => props.element.name)
 
         const model = useFormModel(session, () => props.element.model)
         async function edit(event: MouseEvent) {
@@ -184,12 +233,46 @@ const UI_ELEMENT_SETUP: Record<keyof typeof UI.InternalTypes, (element: any) => 
 
             if (await prompt) {
                 model.value = value.value
-                if (props.element.onChange != null) runAction(session, props.element.onChange, props.element.name)
+                submit()
             }
         }
 
         return () => (
             <Button class="text-left" onClick={edit} clear>{model.value}</Button>
+        )
+    },
+    Table: (props: ElementProps<UI.InternalTypes.Table>) => {
+        const session = inject(SESSION_KEY)!
+        const formOverride = inject(FORM_OVERRIDE_KEY)!
+
+        const model = useFormModel(session, () => props.element.model)
+
+        return () => (
+            <table>
+                <thead>
+                    <tr>
+                        {props.element.columns.map(column => (
+                            <th key={column.key}>{column.label}</th>
+                        ))}
+                    </tr>
+                </thead>
+                <tbody>
+                    {Object.keys(model.value).map(row => (
+                        <tr key={row}>
+                            <ProvideUtil
+                                value={{ ...formOverride, [props.element.variable]: `${model.model.id}.${row}` }}
+                                provideKey={FORM_OVERRIDE_KEY}
+                            >
+                                {props.element.columns.map(column => (
+                                    <td key={column.key}>
+                                        <UIElementView element={column.element as UIElement} />
+                                    </td>
+                                ))}
+                            </ProvideUtil>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
         )
     }
 }
@@ -247,6 +330,7 @@ export const RemoteUIView = (defineComponent({
 
         provide(REMOTE_UI_KEY, remoteUI.value)
         provide(SESSION_KEY, session)
+        provide(FORM_OVERRIDE_KEY, {})
 
         return () => (
             <Overlay class="flex column" show={!session.value.root || session.value.loading > 0}>{{

@@ -61,6 +61,7 @@ export namespace UI {
     export const label = defaultFactory("Label")
     export const output = defaultFactory("Output")
     export const input = defaultFactory("Input")
+    export const table = defaultFactory("Table")
     export function button(options: Omit<ElementOptions["Button"], "onClick"> & { onClick?: string | undefined | null | { id: string } }) {
         if (options.onClick != null && typeof options.onClick == "object") {
             options.onClick = options.onClick.id
@@ -140,6 +141,14 @@ export namespace UI {
             ...positionProps,
             ...styleProps
         }) { }
+
+        export class Table extends Struct.define("Table", {
+            variable: Type.string,
+            columns: Type.object({ label: Type.string, key: Type.string, element: UIElementInternal_t }).as(Type.array),
+            model: Type.string,
+            ...positionProps,
+            ...styleProps
+        }) { }
     }
 }
 
@@ -165,16 +174,15 @@ export function parseActionID(id: string) {
         waitForCompletion = true
     }
 
-    return { type: type as "form" | "action" | "meta", form, action, waitForCompletion } as (
+    return { type: type as "form" | "action" | "meta", form, action, waitForCompletion, id } as (
         { type: "action" | "meta" } | { type: "form", form: string }
-    ) & { action: string, waitForCompletion: boolean }
+    ) & { action: string, waitForCompletion: boolean, id: string }
 }
 
 export function parseModelID(id: string) {
-    const formEnd = id.indexOf("_")
-    if (formEnd == -1) throw new Error("Missing model component: path")
-    const form = id.slice(0, formEnd)
-    const property = id.slice(formEnd + 1)
-    const path = property.split(".")
-    return { form, path }
+    let formEnd = id.indexOf("_")
+    const form = id.slice(0, formEnd == -1 ? id.length : formEnd)
+    const property = formEnd == -1 ? null : id.slice(formEnd + 1)
+    const path = property?.split(".") ?? []
+    return { form, path, id }
 }
