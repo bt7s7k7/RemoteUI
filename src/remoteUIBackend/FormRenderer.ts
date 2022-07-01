@@ -192,7 +192,11 @@ export function formEventToMutation(event: FormEvent<any>, target = ""): StructS
 
     let value = event.data
     for (const segment of model.path) {
-        value = value[segment]
+        if (value instanceof Map) {
+            value = value.get(segment)
+        } else {
+            value = value[segment]
+        }
     }
 
     const path = cloneArray(model.path)
