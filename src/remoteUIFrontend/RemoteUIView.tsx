@@ -246,7 +246,13 @@ const UI_ELEMENT_SETUP: Record<keyof typeof UI.InternalTypes, (element: any) => 
         }
 
         return () => (
-            <Button class="text-left" onClick={edit} clear>{model.value}</Button>
+            <Button class="text-left" onClick={edit} clear>
+                {model.value ? (
+                    model.value
+                ) : (
+                    <div class="muted">Click to edit</div>
+                )}
+            </Button>
         )
     },
     Table: (props: ElementProps<UI.InternalTypes.Table>) => {
