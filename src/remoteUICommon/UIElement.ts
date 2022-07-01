@@ -1,6 +1,5 @@
 import { Struct } from "../struct/Struct"
 import { SerializationError, Type } from "../struct/Type"
-import { Variant } from "../vue3gui/variants"
 
 export type MetaActionType = "cancel" | "reload"
 
@@ -26,8 +25,10 @@ export const UIElementInternal_t: Type<unknown> = Type.createType({
 
 export const UIElement_t = UIElementInternal_t as Type<UIElement>
 
-const Variant_t = Type.enum(...Variant.LIST)
-const Border_t = Type.enum(...Variant.LIST, true)
+const VARIANT_LIST = ["danger", "white", "black", "secondary", "primary", "warning", "success", "dark"] as const
+
+const Variant_t = Type.enum(...VARIANT_LIST)
+const Border_t = Type.enum(...VARIANT_LIST, true)
 
 const layoutProps = {
     axis: Type.enum("column", "row").as(Type.nullable),
@@ -55,7 +56,7 @@ type ElementOptions = {
     [P in keyof typeof UI.InternalTypes]: ConstructorParameters<typeof UI.InternalTypes[P]>[0]
 }
 
-function defaultFactory<K extends keyof ElementOptions>(name: K) { return (options: ElementOptions[K]) => new UI.InternalTypes[name](options as any) }
+function defaultFactory<K extends keyof ElementOptions>(name: K) { return (options: ElementOptions[K]) => new UI.InternalTypes[name](options as any) as InstanceType<typeof UI.InternalTypes[K]> }
 
 export namespace UI {
     export const label = defaultFactory("Label")
