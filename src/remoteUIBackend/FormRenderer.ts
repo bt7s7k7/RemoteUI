@@ -1,4 +1,4 @@
-import { camelToTitleCase, cloneArray, ensureKey } from "../comTypes/util"
+import { camelToTitleCase, cloneArray, ensureKey, unreachable } from "../comTypes/util"
 import { parseModelID, UI, UIElement } from "../remoteUICommon/UIElement"
 import { Type } from "../struct/Type"
 import { StructSyncMessages } from "../structSync/StructSyncMessages"
@@ -43,7 +43,7 @@ setCustomFieldRenderer(Type.string, (model, readonly, onChange, name) => (
 setCustomFieldRenderer(Type.boolean, (model, readonly, onChange, name) => UI.checkbox({ model, onChange, name, readonly }))
 
 const DEFAULT_LABEL_SIZE = 100
-export class FormRenderer<T extends Type.ObjectType = Type.ObjectType> {
+export class FormRenderer<T extends Type<any> = Type<any>> {
     public readonly rootName = this.options.name ?? this.options.model
     protected childRendererCache = new Map<string, FormRenderer>()
     protected fieldsCache: Field[] | null = null
@@ -108,6 +108,8 @@ export class FormRenderer<T extends Type.ObjectType = Type.ObjectType> {
 
         const fields: Field[] = []
 
+        if (!Type.isObject(this.options.type)) unreachable()
+
         for (const [prop, propType] of this.options.type.propList) {
             if (this.options.whitelist && !this.options.whitelist.includes(prop)) continue
             if (this.options.blacklist && this.options.blacklist.includes(prop)) continue
@@ -144,7 +146,7 @@ export class FormRenderer<T extends Type.ObjectType = Type.ObjectType> {
 
 type TableDefinition = Pick<Parameters<typeof UI.table>[0], "columns" | "variable" | "model">
 type TableColumn = TableDefinition["columns"][number]
-export class TableRenderer<T extends Type.ObjectType = Type.ObjectType> {
+export class TableRenderer<T extends Type<any> = Type<any>> {
     public variable = this.options.name ?? "table"
     public formRenderer = new FormRenderer({ noLabels: true, ...this.options, type: this.options.type, model: this.variable })
     protected columnsCache: TableColumn[] | null = null
