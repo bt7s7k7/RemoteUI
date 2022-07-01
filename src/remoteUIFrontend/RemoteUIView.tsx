@@ -279,7 +279,7 @@ const UI_ELEMENT_SETUP: Record<keyof typeof UI.InternalTypes, (element: any) => 
                             >
                                 {props.element.columns.map(column => (
                                     <td key={column.key}>
-                                        <UIElementView element={column.element as UIElement} />
+                                        <UIElementView element={column.element as UIElement} class="w-fill" />
                                     </td>
                                 ))}
                             </ProvideUtil>
