@@ -4,7 +4,6 @@ import { SerializationError, Type } from "../struct/Type"
 import { ActionType } from "../structSync/ActionType"
 import { EventType } from "../structSync/EventType"
 import { StructSyncContract } from "../structSync/StructSyncContract"
-import { ThemeSwitch } from "../vue3gui/ThemeSwitch"
 import { UIElement_t } from "./UIElement"
 
 export class RouteParseError extends SerializationError {
