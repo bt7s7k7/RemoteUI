@@ -1,5 +1,6 @@
 import { Struct } from "../struct/Struct"
 import { SerializationError, Type } from "../struct/Type"
+import { Route_t } from "./RemoteUI"
 
 export type MetaActionType = "cancel" | "reload"
 
@@ -117,6 +118,7 @@ export namespace UI {
             name: Type.string.as(Type.nullable),
             variant: Variant_t.as(Type.nullable),
             clear: Type.boolean.as(Type.nullable),
+            to: Type.string.as(Type.nullable),
             ...positionProps,
             ...styleProps
         }) { }

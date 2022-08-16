@@ -150,7 +150,16 @@ const ProvideUtil = defineComponent({
 const UI_ELEMENT_SETUP: Record<keyof typeof UI.InternalTypes, (element: any) => () => any> = {
     Button: (props: ElementProps<UI.InternalTypes.Button>) => {
         const session = inject(SESSION_KEY)!
-        const click = useAction(session, () => props.element.onClick, () => props.element.name)
+        const onClickAction = useAction(session, () => props.element.onClick, () => props.element.name)
+
+        function click() {
+            onClickAction()
+
+            if (props.element.to) {
+                const target = Route.parse(props.element.to, session.value.route)
+                session.value.redirect(target)
+            }
+        }
 
         return () => (
             <Button
@@ -328,7 +337,7 @@ const UIElementView = defineComponent({
 export const RemoteUIView = (defineComponent({
     name: "RemoteUIView",
     props: {
-        route: { type: String, required: true },
+        route: { type: String, default: () => "/" },
         remoteUI: { type: RemoteUIProxy }
     },
     setup(props, ctx) {
@@ -336,11 +345,21 @@ export const RemoteUIView = (defineComponent({
         const parentSession = inject(SESSION_KEY, null)
         const remoteUI = computed(() => props.remoteUI ?? parentRemoteUI ?? unreachable("RemoteUIProxy was not provided or inherited"))
 
+        const route = ref(props.route)
+        watch(() => props.route, (newRoute) => {
+            route.value = newRoute
+        })
+
         const session = ref<RemoteUISessionHandle>(null!)
-        watch(() => props.route, route => {
+        watch(route, route => {
             if (session.value) session.value.close()
             session.value = remoteUI.value.getSession(Route.parse(route, parentSession?.value.route ?? null))
         }, { immediate: true })
+
+        watch(() => session.value.redirected, (redirect) => {
+            if (!redirect) return
+            route.value = redirect.toString()
+        })
 
         provide(REMOTE_UI_KEY, remoteUI.value)
         provide(SESSION_KEY, session)

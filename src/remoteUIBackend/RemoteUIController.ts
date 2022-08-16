@@ -1,3 +1,4 @@
+import { Readwrite } from "../comTypes/types"
 import { makeRandomID } from "../comTypes/util"
 import { DISPOSE } from "../eventLib/Disposable"
 import { EventListener } from "../eventLib/EventListener"
@@ -29,6 +30,11 @@ export namespace RouteResolver {
 }
 
 export class RemoteUISession extends EventListener {
+    public [DISPOSE]() {
+        (this as Readwrite<this>).routeController = null!
+        super[DISPOSE]()
+    }
+
     public setForm(form: string, data: any) {
         this.controller.onFormSet.emit({ session: this.id, form, data })
     }
@@ -42,7 +48,11 @@ export class RemoteUISession extends EventListener {
     }
 
     public close() {
-        this.controller.onSessionClosed.emit({ session: this.id })
+        this.redirect(undefined)
+    }
+
+    public redirect(redirect: Route | null | undefined) {
+        this.controller.onSessionClosed.emit({ session: this.id, redirect })
         this.controller["sessions"].delete(this.id)
         this.dispose()
     }

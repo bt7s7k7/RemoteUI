@@ -5,6 +5,8 @@ import { MutationUtil } from "../structSync/MutationUtil"
 
 export class RemoteUISessionHandle {
     public open = true
+    public closedByHost = false
+    public redirected: Route | null = null
     public root: UIElement | null = null
     public id: string = null!
     public forms: Record<string, any> = {}
@@ -12,11 +14,17 @@ export class RemoteUISessionHandle {
     public error: string | null = null
 
     public triggerAction(action: string, form: any, sender: string | null | undefined) {
+        if (!this.open) return Promise.reject(new Error("Cannot trigger action, session is closed"))
         return this.proxy.triggerAction({ session: this.id, action, form, sender })
     }
 
+    public redirect(redirect: Route) {
+        this.close()
+        this.redirected = redirect
+    }
+
     public close() {
-        if (this.open) return
+        if (!this.open) return
 
         this.open = false
         if (!this.id) return
@@ -82,6 +90,20 @@ export class RemoteUIProxy extends RemoteUIContract.defineProxy() {
             const formData = sessionHandle.forms[form]
             for (const mutation of mutations) {
                 MutationUtil.applyMutation(formData, null, mutation)
+            }
+        })
+
+        this.onSessionClosed.add(null, ({ session, redirect }) => {
+            const handle = this.sessions.get(session)
+            if (!handle) return
+
+            this.sessions.delete(session)
+            handle.open = false
+            handle.closedByHost = true
+            if (redirect) {
+                handle.redirected = redirect
+            } else {
+                handle.error = "Session closed by host"
             }
         })
 

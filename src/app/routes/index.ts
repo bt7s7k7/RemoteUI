@@ -1,5 +1,6 @@
 import { delayedPromise } from "../../comTypes/util"
 import { defineRouteController } from "../../remoteUIBackend/RouteController"
+import { Route } from "../../remoteUICommon/RemoteUI"
 import { UI } from "../../remoteUICommon/UIElement"
 import { Type } from "../../struct/Type"
 import { ClientError } from "../../structSync/StructSyncServer"
@@ -22,6 +23,10 @@ export default defineRouteController(ctx => {
     const throwError = ctx.action("throwError", async () => {
         throw new ClientError("This is an error!")
     }, { waitForCompletion: true })
+
+    const redirect = ctx.action("redirect", async (event) => {
+        event.session.redirect(Route.parse("/table"))
+    })
 
     return () => (
         UI.frame({
@@ -59,6 +64,20 @@ export default defineRouteController(ctx => {
                         UI.button({
                             text: "Throw",
                             onClick: throwError.id
+                        })
+                    ]
+                }),
+                UI.frame({
+                    axis: "row",
+                    gap: 2,
+                    children: [
+                        UI.button({
+                            text: "Link",
+                            to: "/form"
+                        }),
+                        UI.button({
+                            text: "Redirect",
+                            onClick: redirect
                         })
                     ]
                 })

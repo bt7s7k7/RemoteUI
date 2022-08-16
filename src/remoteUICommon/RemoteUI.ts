@@ -142,7 +142,7 @@ export const RemoteUIContract = StructSyncContract.define(class RemoteUI extends
     onSessionUpdate: EventType.define("onSessionUpdate", Type.object({ session: Type.string, root: UIElement_t })),
     onFormSet: EventType.define("onFormSet", Type.object({ session: Type.string, form: Type.string, data: FormData_t })),
     onFormUpdate: EventType.define("onFormUpdate", Type.object({ session: Type.string, form: Type.string, mutations: FormData_t.as(Type.array) })),
-    onSessionClosed: EventType.define("onSessionClosed", Type.object({ session: Type.string }))
+    onSessionClosed: EventType.define("onSessionClosed", Type.object({ session: Type.string, redirect: Route_t.as(Type.nullable) }))
 })
 
 declare const TYPE_MARKER: unique symbol
