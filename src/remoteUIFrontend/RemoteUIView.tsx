@@ -172,7 +172,11 @@ const UI_ELEMENT_SETUP: Record<keyof typeof UI.InternalTypes, (element: any) => 
     Label: (props: ElementProps<UI.InternalTypes.Label>) => {
 
         return () => (
-            h(props.element.size ?? "span", {}, props.element.text)
+            props.element.richText ? (
+                h(props.element.size ?? "span", { innerHTML: props.element.text })
+            ) : (
+                h(props.element.size ?? "span", {}, props.element.text)
+            )
         )
     },
     Frame: (props: ElementProps<UI.InternalTypes.Frame>) => {
@@ -226,7 +230,11 @@ const UI_ELEMENT_SETUP: Record<keyof typeof UI.InternalTypes, (element: any) => 
         const model = useFormModel(session, () => props.element.model)
 
         return () => (
-            <span>{model.value}</span>
+            props.element.richText ? (
+                <span innerHTML={model.value} />
+            ) : (
+                <span>{model.value}</span>
+            )
         )
     },
     Editable: (props: ElementProps<UI.InternalTypes.Editable>) => {

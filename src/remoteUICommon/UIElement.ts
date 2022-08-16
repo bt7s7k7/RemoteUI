@@ -91,12 +91,14 @@ export namespace UI {
         export class Label extends Struct.define("Label", {
             text: Type.string,
             size: Type.enum("small", "h1", "h2", "h3").as(Type.nullable),
+            richText: Type.boolean.as(Type.nullable),
             ...positionProps,
             ...styleProps
         }) { }
 
         export class Output extends Struct.define("Output", {
             model: Type.string,
+            richText: Type.boolean.as(Type.nullable),
             ...positionProps,
             ...styleProps
         }) { }

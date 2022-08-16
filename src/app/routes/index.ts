@@ -80,6 +80,13 @@ export default defineRouteController(ctx => {
                             onClick: redirect
                         })
                     ]
+                }),
+                UI.frame({
+                    axis: "row",
+                    gap: 2,
+                    children: [
+                        UI.label({ text: `<span class="text-success">Rich text</span>`, richText: true })
+                    ]
                 })
             ]
         })
