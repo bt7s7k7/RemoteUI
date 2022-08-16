@@ -297,7 +297,18 @@ const UI_ELEMENT_SETUP: Record<keyof typeof UI.InternalTypes, (element: any) => 
                 </tbody>
             </table>
         )
-    }
+    },
+    Embed: (props: ElementProps<UI.InternalTypes.Embed>) => {
+        const session = inject(SESSION_KEY)!
+
+        return () => (
+            session.value.depth > 10 ? (
+                <div class="text-danger">Max embed depth reached</div>
+            ) : (
+                <RemoteUIView route={props.element.route} />
+            )
+        )
+    },
 }
 
 const UI_ELEMENT_LOOKUP = Object.fromEntries(Object.entries(UI_ELEMENT_SETUP).map(([key, value]) => [key, defineComponent({
@@ -354,6 +365,7 @@ export const RemoteUIView = (defineComponent({
         watch(route, route => {
             if (session.value) session.value.close()
             session.value = remoteUI.value.getSession(Route.parse(route, parentSession?.value.route ?? null))
+            if (parentSession?.value) session.value.depth = parentSession.value.depth + 1
         }, { immediate: true })
 
         watch(() => session.value.redirected, (redirect) => {

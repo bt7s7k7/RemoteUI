@@ -5,6 +5,7 @@ import { MutationUtil } from "../structSync/MutationUtil"
 
 export class RemoteUISessionHandle {
     public open = true
+    public depth = 0
     public closedByHost = false
     public redirected: Route | null = null
     public root: UIElement | null = null

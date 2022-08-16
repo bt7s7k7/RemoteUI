@@ -87,10 +87,10 @@ function resolveRoute(root: RouteResolver, route: Route) {
         if (target == null) return null
         resolver = target
         if (resolver instanceof RouteController) {
-            if (i < route.segments.length) {
-                break
-            } else {
+            if (i != route.segments.length - 1) {
                 return null
+            } else {
+                break
             }
         }
     }

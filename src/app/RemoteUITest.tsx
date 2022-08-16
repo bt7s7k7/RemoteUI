@@ -1,16 +1,18 @@
-import { computed, defineComponent, shallowRef } from "vue"
+import { computed, defineComponent, ref, shallowRef } from "vue"
 import { useRoute, useRouter } from "vue-router"
 import { camelToTitleCase } from "../comTypes/util"
 import { IDProvider } from "../dependencyInjection/commonServices/IDProvider"
 import { MessageBridge } from "../dependencyInjection/commonServices/MessageBridge"
 import { DIContext } from "../dependencyInjection/DIContext"
 import { RemoteUIController, RouteResolver } from "../remoteUIBackend/RemoteUIController"
+import { Route } from "../remoteUICommon/RemoteUI"
 import { RemoteUIProxy } from "../remoteUIFrontend/RemoteUIProxy"
 import { RemoteUIView } from "../remoteUIFrontend/RemoteUIView"
 import { StructSyncClient } from "../structSync/StructSyncClient"
 import { StructSyncServer } from "../structSync/StructSyncServer"
 import { StructSyncSession } from "../structSync/StructSyncSession"
 import { Button } from "../vue3gui/Button"
+import { TextField } from "../vue3gui/TextField"
 
 const routesList = Object.entries(import.meta.globEager("./routes/*.ts")).map(([name, module]) => {
     name = name.match(/^\.\/routes\/([^.]*)/)![1]
@@ -45,6 +47,19 @@ export const RemoteUITest = (defineComponent({
             set: (v) => router.replace({ query: { selected: v } })
         })
 
+        const testRoute = ref("")
+        const testBase = ref("")
+        const testResult = computed(() => {
+            if (testRoute.value == "") return ""
+
+            try {
+                const result = Route.parse(testRoute.value, testBase.value == "" ? null : Route.parse(testBase.value))
+                return result.toString() + "\n\n" + JSON.stringify(result, null, 4)
+            } catch (err: any) {
+                return err.message
+            }
+        })
+
         return () => (
             <div class="p-4 flex-fill flex row gap-2">
                 <div class="flex-basis-500 p-2 rounded border flex">
@@ -57,6 +72,14 @@ export const RemoteUITest = (defineComponent({
                     {Object.keys(routes.options.routes!).map(key => (
                         <Button class="text-left" clear onClick={() => selectedRoute.value = "/" + key}>{camelToTitleCase(key)}</Button>
                     ))}
+                </div>
+                <div class="flex-basis-500 flex column">
+                    <div class="flex row">
+                        Route:&nbsp;<TextField class="flex-fill" vModel={testRoute.value} />
+                        &nbsp;
+                        Base:&nbsp;<TextField class="flex-fill" vModel={testBase.value} />
+                    </div>
+                    <pre>{testResult.value}</pre>
                 </div>
             </div>
         )

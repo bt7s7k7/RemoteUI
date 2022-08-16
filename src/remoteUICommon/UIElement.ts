@@ -1,6 +1,5 @@
 import { Struct } from "../struct/Struct"
 import { SerializationError, Type } from "../struct/Type"
-import { Route_t } from "./RemoteUI"
 
 export type MetaActionType = "cancel" | "reload"
 
@@ -64,6 +63,7 @@ export namespace UI {
     export const output = defaultFactory("Output")
     export const input = defaultFactory("Input")
     export const table = defaultFactory("Table")
+    export const embed = defaultFactory("Embed")
     export function button(options: Omit<ElementOptions["Button"], "onClick"> & { onClick?: string | undefined | null | { id: string } }) {
         if (options.onClick != null && typeof options.onClick == "object") {
             options.onClick = options.onClick.id
@@ -150,6 +150,12 @@ export namespace UI {
             variable: Type.string,
             columns: Type.object({ label: Type.string, key: Type.string, element: UIElementInternal_t }).as(Type.array),
             model: Type.string,
+            ...positionProps,
+            ...styleProps
+        }) { }
+
+        export class Embed extends Struct.define("Embed", {
+            route: Type.string,
             ...positionProps,
             ...styleProps
         }) { }

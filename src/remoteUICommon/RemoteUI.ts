@@ -79,6 +79,7 @@ export class Route {
                 if (input.startsWith("..", index)) {
                     const success = !!route.segments.pop()
                     if (!success) throw new RouteParseError(`Unexpected "..", route is already root at ${index} (${input})`)
+                    index += 2
 
                     route.component = null
                     route.query = {}
@@ -93,6 +94,13 @@ export class Route {
                     }
                     index++
                     const segment = consumeToken()
+
+                    if (segment == "..") {
+                        const success = !!route.segments.pop()
+                        if (!success) throw new RouteParseError(`Unexpected "..", route is already root at ${index} (${input})`)
+                        continue
+                    }
+
                     if (segment.length > 0) route.segments.push(segment)
                     continue
                 }
@@ -111,6 +119,8 @@ export class Route {
                     didComponent = true
                     continue
                 }
+
+                throw new RouteParseError(`Unexpected "${input[index]}" at ${index} (${input})`)
             }
         }
 
