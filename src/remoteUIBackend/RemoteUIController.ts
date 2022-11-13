@@ -51,7 +51,8 @@ export class RemoteUISession extends EventListener {
         this.redirect(undefined)
     }
 
-    public redirect(redirect: Route | null | undefined) {
+    public redirect(redirect: Route | string | null | undefined) {
+        if (typeof redirect == "string") redirect = Route.parse(redirect, this.route)
         this.controller.onSessionClosed.emit({ session: this.id, redirect })
         this.controller["sessions"].delete(this.id)
         this.dispose()
