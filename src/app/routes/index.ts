@@ -28,67 +28,77 @@ export default defineRouteController(ctx => {
         event.session.redirect(Route.parse("/table"))
     })
 
-    return () => (
-        UI.frame({
-            axis: "column",
-            gap: 2,
-            children: [
-                UI.frame({
-                    axis: "row",
-                    gap: 2,
-                    children: [
-                        UI.input({
-                            model: form.model.hello,
-                            fill: true
-                        }),
-                        UI.button({
-                            text: "Submit",
-                            onClick: submitForm
-                        })
-                    ]
-                }),
-                UI.output({
-                    model: form.model.output
-                }),
-                UI.frame({
-                    axis: "row",
-                    gap: 2,
-                    children: [
-                        UI.label({
-                            text: `Count: ${count}`
-                        }),
-                        UI.button({
-                            text: "Increment",
-                            onClick: increment.id
-                        }),
-                        UI.button({
-                            text: "Throw",
-                            onClick: throwError.id
-                        })
-                    ]
-                }),
-                UI.frame({
-                    axis: "row",
-                    gap: 2,
-                    children: [
-                        UI.button({
-                            text: "Link",
-                            to: "/form"
-                        }),
-                        UI.button({
-                            text: "Redirect",
-                            onClick: redirect
-                        })
-                    ]
-                }),
-                UI.frame({
-                    axis: "row",
-                    gap: 2,
-                    children: [
-                        UI.label({ text: `<span class="text-success">Rich text</span>`, richText: true })
-                    ]
-                })
-            ]
-        })
+    return (session) => (
+        session.route.query.test ? (
+            UI.frame({
+                gap: 2,
+                children: [
+                    UI.label({ text: "You are there" }),
+                    UI.button({ text: "Go Back", to: "?test=" })
+                ]
+            })
+        ) : (
+            UI.frame({
+                axis: "column",
+                gap: 2,
+                children: [
+                    UI.frame({
+                        axis: "row",
+                        gap: 2,
+                        children: [
+                            UI.input({
+                                model: form.model.hello,
+                                fill: true
+                            }),
+                            UI.button({
+                                text: "Submit",
+                                onClick: submitForm
+                            })
+                        ]
+                    }),
+                    UI.output({
+                        model: form.model.output
+                    }),
+                    UI.frame({
+                        axis: "row",
+                        gap: 2,
+                        children: [
+                            UI.label({
+                                text: `Count: ${count}`
+                            }),
+                            UI.button({
+                                text: "Increment",
+                                onClick: increment.id
+                            }),
+                            UI.button({
+                                text: "Throw",
+                                onClick: throwError.id
+                            })
+                        ]
+                    }),
+                    UI.frame({
+                        axis: "row",
+                        gap: 2,
+                        children: [
+                            UI.button({
+                                text: "Link",
+                                to: "?test=true"
+                            }),
+                            UI.button({
+                                text: "Redirect",
+                                onClick: redirect
+                            })
+                        ]
+                    }),
+                    UI.frame({
+                        axis: "row",
+                        gap: 2,
+                        children: [
+                            UI.label({ text: `<span class="text-success">Rich text</span>`, richText: true })
+                        ]
+                    })
+                ]
+            })
+        )
     )
 })

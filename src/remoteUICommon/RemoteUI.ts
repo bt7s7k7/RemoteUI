@@ -65,11 +65,17 @@ export class Route {
             if (isQuery) {
                 const name = consumeToken()
                 if (!input.startsWith("=", index)) throw new RouteParseError(`Unexpected "${input[index]}", expected "="`)
+                index++
                 const value = consumeToken()
                 if (index < input.length && !input.startsWith("&", index)) throw new RouteParseError(`Unexpected "${input[index]}", expected "&" or end`)
-                route.query[name] = value
+                if (value == "") {
+                    delete route.query[name]
+                } else {
+                    route.query[name] = value
+                }
             } else {
                 if (input.startsWith("?", index)) {
+                    index++
                     isQuery = true
                     continue
                 }
