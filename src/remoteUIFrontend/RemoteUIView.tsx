@@ -1,5 +1,5 @@
 import { mdiAlert, mdiCheckboxBlankOutline, mdiCheckboxMarked } from "@mdi/js"
-import { computed, defineComponent, h, inject, InjectionKey, PropType, provide, reactive, Ref, ref, watch } from "vue"
+import { computed, defineComponent, h, inject, InjectionKey, onUnmounted, PropType, provide, reactive, Ref, ref, watch } from "vue"
 import { cloneArray, isAlpha, unreachable, unzip } from "../comTypes/util"
 import { Route } from "../remoteUICommon/RemoteUI"
 import { parseActionID, parseModelID, UI, UIElement } from "../remoteUICommon/UIElement"
@@ -385,6 +385,12 @@ export const RemoteUIView = (defineComponent({
         provide(REMOTE_UI_KEY, remoteUI.value)
         provide(SESSION_KEY, session)
         provide(FORM_OVERRIDE_KEY, {})
+
+        onUnmounted(() => {
+            if (session.value?.open) {
+                session.value.close()
+            }
+        })
 
         return () => (
             <Overlay class="flex column" show={!session.value.root || session.value.loading > 0}>{{
