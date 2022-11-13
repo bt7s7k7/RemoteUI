@@ -1,11 +1,12 @@
 import { Readwrite } from "../comTypes/types"
-import { makeRandomID } from "../comTypes/util"
+import { ensureKey, makeRandomID } from "../comTypes/util"
 import { DISPOSE } from "../eventLib/Disposable"
 import { EventListener } from "../eventLib/EventListener"
 import { RemoteUIContract, Route } from "../remoteUICommon/RemoteUI"
 import { UI } from "../remoteUICommon/UIElement"
 import { StructSyncMessages } from "../structSync/StructSyncMessages"
 import { ClientError } from "../structSync/StructSyncServer"
+import { StructSyncSession } from "../structSync/StructSyncSession"
 import { defineRouteController, RouteController } from "./RouteController"
 
 export interface RouteResolver {
@@ -116,6 +117,8 @@ function resolveRoute(root: RouteResolver, route: Route) {
     return resolver
 }
 
+const sessionDisposeGuard = new WeakMap<StructSyncSession, Set<RemoteUISession>>()
+
 export class RemoteUIController extends RemoteUIContract.defineController() {
     public routes = NULL_ROUTE_RESOLVER
 
@@ -130,14 +133,16 @@ export class RemoteUIController extends RemoteUIContract.defineController() {
     }
 
     public impl = super.impl({
-        closeSession: async ({ session: sessionID }) => {
+        closeSession: async ({ session: sessionID }, meta) => {
             const session = this.sessions.get(sessionID)
-            if (!session) throw new ClientError(`Session "${sessionID}" not found`)
+            if (!session)
+                throw new ClientError(`Session "${sessionID}" not found`)
 
-            session.dispose()
-            this.sessions.delete(sessionID)
+            sessionDisposeGuard.get(meta.session)!.delete(session)
+
+            this.closeSession(session)
         },
-        openSession: async ({ route }) => {
+        openSession: async ({ route }, meta) => {
             const controller = resolveRoute(this.routes, route) ?? DEFAULT_ROUTE
             const session = new RemoteUISession(this, makeRandomID(), route, controller)
 
@@ -145,9 +150,23 @@ export class RemoteUIController extends RemoteUIContract.defineController() {
 
             this.sessions.set(session.id, session)
 
+            const sessionSessions = ensureKey(sessionDisposeGuard, meta.session, () => {
+                const set = new Set<RemoteUISession>()
+
+                meta.session.onBeforeDispose.add(this, () => {
+                    for (const session of set) {
+                        this.closeSession(session)
+                    }
+                })
+
+                return set
+            })
+
+            sessionSessions.add(session)
+
             return {
                 session: session.id,
-                forms: controller.makeForms(),
+                forms: controller.makeForms(session),
                 root: controller.render(session, Route.ROOT)
             }
         },
@@ -165,4 +184,9 @@ export class RemoteUIController extends RemoteUIContract.defineController() {
             await controller.handleAction(session, action, form, sender)
         }
     })
+
+    protected closeSession(session: RemoteUISession) {
+        session.dispose()
+        this.sessions.delete(session.id)
+    }
 }
