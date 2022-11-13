@@ -67,11 +67,18 @@ export class Route {
                 if (!input.startsWith("=", index)) throw new RouteParseError(`Unexpected "${input[index]}", expected "="`)
                 index++
                 const value = consumeToken()
-                if (index < input.length && !input.startsWith("&", index)) throw new RouteParseError(`Unexpected "${input[index]}", expected "&" or end`)
                 if (value == "") {
                     delete route.query[name]
                 } else {
                     route.query[name] = value
+                }
+
+                if (index < input.length) {
+                    if (input.startsWith("&", index)) {
+                        index++
+                    } else {
+                        throw new RouteParseError(`Unexpected "${input[index]}", expected "&" or end`)
+                    }
                 }
             } else {
                 if (input.startsWith("?", index)) {
