@@ -49,7 +49,8 @@ const styleProps = {
     fontColor: Variant_t.as(Type.nullable),
     bgColor: Variant_t.as(Type.nullable),
     muted: Type.boolean.as(Type.nullable),
-    monospace: Type.boolean.as(Type.nullable)
+    monospace: Type.boolean.as(Type.nullable),
+    textAlign: Type.enum("left", "right", "center").as(Type.nullable)
 }
 
 type ElementOptions = {

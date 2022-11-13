@@ -346,6 +346,7 @@ const UIElementView = defineComponent({
                     props.element.monospace && `monospace`,
                     props.element.muted && `muted`,
                     props.element.basis && `flex-basis-${props.element.basis}`,
+                    props.element.textAlign && `text-${props.element.textAlign}`,
                     getSpacingClasses(props.element)
                 ]
             })

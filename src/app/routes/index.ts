@@ -96,7 +96,8 @@ export default defineRouteController(ctx => {
                         children: [
                             UI.label({ text: `<span class="text-success">Rich text</span>`, richText: true })
                         ]
-                    })
+                    }),
+                    UI.button({ text: "Alignment", textAlign: "left" })
                 ]
             })
         )
