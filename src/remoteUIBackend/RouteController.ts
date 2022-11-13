@@ -108,7 +108,7 @@ export class RouteController extends Disposable {
     }
 
     public *getSessions() {
-        for (const sessionRef of this.sessions) {
+        for (const sessionRef of [...this.sessions]) {
             if (!sessionRef.alive) {
                 this.sessions.delete(sessionRef)
                 continue
