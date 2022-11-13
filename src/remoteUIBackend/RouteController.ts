@@ -6,7 +6,6 @@ import { Type } from "../struct/Type"
 import { MutationUtil } from "../structSync/MutationUtil"
 import { StructSyncMessages } from "../structSync/StructSyncMessages"
 import { ClientError } from "../structSync/StructSyncServer"
-import { FormRenderer } from "./FormRenderer"
 import { RemoteUISession } from "./RemoteUIController"
 
 export interface ActionEvent {
@@ -22,7 +21,7 @@ interface FormDefinition {
     id: string
     type: Type<any>
     actions: Map<string, FormActionCallback<any>>
-    defaultFactory: (() => any) | null
+    defaultFactory: ((session: RemoteUISession) => any) | null
 }
 
 interface ActionHandle {
@@ -43,7 +42,7 @@ type ActionCallback = (event: ActionEvent) => void | Promise<void>
 
 interface RouteControllerContext {
     action(name: string, callback: ActionCallback, options?: { waitForCompletion?: boolean }): ActionHandle
-    form<T>(name: string, type: Type<T>, defaultFactory?: () => T): FormHandle<T>
+    form<T>(name: string, type: Type<T>, defaultFactory?: (session: RemoteUISession) => T): FormHandle<T>
     meta: Record<MetaActionType, string>
     controller: RouteController
 }
@@ -63,11 +62,11 @@ export class RouteController extends Disposable {
         super[DISPOSE]()
     }
 
-    public makeForms() {
+    public makeForms(session: RemoteUISession) {
         const forms: Record<string, any> = {}
 
         for (const form of this.forms.values()) {
-            forms[form.id] = form.defaultFactory?.() ?? form.type.default()
+            forms[form.id] = form.defaultFactory?.(session) ?? form.type.default()
         }
 
         return forms
