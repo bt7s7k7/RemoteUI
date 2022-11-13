@@ -1,4 +1,4 @@
-import { computed, defineComponent, ref, shallowRef } from "vue"
+import { computed, defineComponent, onUnmounted, ref, shallowRef } from "vue"
 import { useRoute, useRouter } from "vue-router"
 import { camelToTitleCase } from "../comTypes/util"
 import { IDProvider } from "../dependencyInjection/commonServices/IDProvider"
@@ -60,6 +60,17 @@ export const RemoteUITest = (defineComponent({
             }
         })
 
+        const sessionsDebug = ref<{ alive: boolean, id: string, route: string }[]>([])
+        const sessionsDisposed = ref(false)
+        const _1 = setInterval(() => {
+            sessionsDebug.value.length = 0
+            for (const [id, session] of controller["sessions"]) {
+                sessionsDebug.value.push({ id, alive: true, route: session.route.toString() })
+            }
+        }, 100)
+
+        onUnmounted(() => clearInterval(_1))
+
         return () => (
             <div class="p-4 flex-fill flex row gap-2">
                 <div class="flex-basis-500 p-2 rounded border flex">
@@ -80,6 +91,18 @@ export const RemoteUITest = (defineComponent({
                         Base:&nbsp;<TextField class="flex-fill" vModel={testBase.value} />
                     </div>
                     <pre>{testResult.value}</pre>
+                    <div class="flex column">
+                        {sessionsDebug.value.map(session => (
+                            <code key={session.id}>[{session.id}] {session.route}</code>
+                        ))}
+                    </div>
+                    <div class="mt-1">
+                        {!sessionsDisposed.value ? (
+                            <Button onClick={() => { sessions.dispose(); sessionsDisposed.value = true }}>Test destruction</Button>
+                        ) : (
+                            <Button onClick={() => location.reload()}>Reset</Button>
+                        )}
+                    </div>
                 </div>
             </div>
         )
