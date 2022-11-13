@@ -35,11 +35,11 @@ export class Route {
     constructor(input?: Route) {
         if (input == undefined) {
             this.component = null
-            this.query = {}
+            this.query = Object.create(null)
             this.segments = []
         } else {
             this.component = input.component
-            this.query = { ...input.query }
+            this.query = Object.assign(Object.create(null), input.query)
             this.segments = [...input.segments]
         }
     }
