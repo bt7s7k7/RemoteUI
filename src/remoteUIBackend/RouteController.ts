@@ -3,7 +3,7 @@ import { WeakRef } from "../eventLib/SharedRef"
 import { FormModelProperty, Route } from "../remoteUICommon/RemoteUI"
 import { MetaActionType, parseActionID, UI, UIElement } from "../remoteUICommon/UIElement"
 import { Type } from "../struct/Type"
-import { MutationUtil } from "../structSync/MutationUtil"
+import { Mutation } from "../struct/Mutation"
 import { StructSyncMessages } from "../structSync/StructSyncMessages"
 import { ClientError } from "../structSync/StructSyncServer"
 import { RemoteUISession } from "./RemoteUIController"
@@ -35,7 +35,7 @@ interface FormHandle<T> {
     action(name: string, callback: FormActionCallback<T>, options?: { waitForCompletion?: boolean }): ActionHandle
     model: { [P in keyof T]: FormModelProperty<T[P]> & string }
     set(session: RemoteUISession | "all", data: T): void
-    update(session: RemoteUISession | "all", mutation: ((v: T) => void) | StructSyncMessages.AnyMutateMessage | StructSyncMessages.AnyMutateMessage[]): void
+    update(session: RemoteUISession | "all", mutation: ((v: T) => void) | Mutation.AnyMutation | Mutation.AnyMutation[]): void
 }
 
 type ActionCallback = (event: ActionEvent) => void | Promise<void>
@@ -184,7 +184,7 @@ export function defineRouteController(setup: (ctx: RouteControllerContext) => Re
                 },
                 update(session, mutations) {
                     if (typeof mutations == "function") {
-                        mutations = MutationUtil.runMutationThunk("", null, type, mutations)
+                        mutations = Mutation.create(null, type, mutations)
                     } else if (!(mutations instanceof Array)) {
                         mutations = [mutations]
                     }
