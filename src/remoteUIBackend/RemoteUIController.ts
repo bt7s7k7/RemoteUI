@@ -5,10 +5,9 @@ import { EventListener } from "../eventLib/EventListener"
 import { RemoteUIContract, Route } from "../remoteUICommon/RemoteUI"
 import { UI } from "../remoteUICommon/UIElement"
 import { Mutation } from "../struct/Mutation"
-import { StructSyncMessages } from "../structSync/StructSyncMessages"
 import { ClientError } from "../structSync/StructSyncServer"
 import { StructSyncSession } from "../structSync/StructSyncSession"
-import { defineRouteController, RouteController } from "./RouteController"
+import { RouteController, defineRouteController } from "./RouteController"
 
 export interface RouteResolver {
     getRoute(name: string): RouteController | RouteResolver | null
@@ -41,7 +40,7 @@ export class RemoteUISession extends EventListener {
         this.controller.onFormSet.emit({ session: this.id, form, data })
     }
 
-    public updateForm(form: string, mutations: Mutation.AnyMutation[]): void {
+    public updateForm(form: string, mutations: Mutation[]): void {
         this.controller.onFormUpdate.emit({ session: this.id, form, mutations })
     }
 

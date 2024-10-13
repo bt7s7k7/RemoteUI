@@ -1,7 +1,7 @@
 import { camelToTitleCase, cloneArray, ensureKey, unreachable } from "../comTypes/util"
-import { parseModelID, UI, UIElement } from "../remoteUICommon/UIElement"
+import { UI, UIElement, parseModelID } from "../remoteUICommon/UIElement"
+import { Mutation } from "../struct/Mutation"
 import { Type } from "../struct/Type"
-import { StructSyncMessages } from "../structSync/StructSyncMessages"
 import { FormEvent } from "./RouteController"
 
 interface FormRenderSettings {
@@ -186,7 +186,7 @@ export class TableRenderer<T extends Type<any> = Type<any>> {
     ) { }
 }
 
-export function formEventToMutation(event: FormEvent<any>, target = ""): StructSyncMessages.AssignMutateMessage {
+export function formEventToMutation(event: FormEvent<any>): Mutation {
     if (!event.sender) throw new Error("Event must have a sender")
     const model = parseModelID(event.sender)
 
@@ -202,8 +202,7 @@ export function formEventToMutation(event: FormEvent<any>, target = ""): StructS
     const path = cloneArray(model.path)
     const key = path.pop()!
 
-    return {
-        type: "mut_assign",
-        key, path, value, target
-    }
+    return new Mutation.AssignMutation({
+        key, path, value
+    })
 }

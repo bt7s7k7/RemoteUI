@@ -1,6 +1,6 @@
 import { isWord } from "../comTypes/util"
 import { Struct } from "../struct/Struct"
-import { SerializationError, Type } from "../struct/Type"
+import { DeserializationError, Deserializer, SerializationError, Serializer, Type } from "../struct/Type"
 import { ActionType } from "../structSync/ActionType"
 import { EventType } from "../structSync/EventType"
 import { StructSyncContract } from "../structSync/StructSyncContract"
@@ -143,21 +143,32 @@ export class Route {
     public static readonly ROOT = Route.parse("/")
 }
 
-export const Route_t = Type.createType<Route>({
-    default: () => new Route(),
-    deserialize(source) {
-        return Route.parse(source)
-    },
-    serialize(route) {
-        return route.toString()
-    },
-    name: "Route",
-    getDefinition(indent) { return indent + this.name }
-})
+export const Route_t = new class RouteType extends Type<Route> {
+    public readonly name = "Route"
+    public getDefinition(indent: string): string {
+        return indent + this.name
+    }
+
+    public default(): Route {
+        return new Route()
+    }
+    public verify(value: unknown): Route {
+        if (!(value instanceof Route)) throw new DeserializationError("Expected route")
+        return value
+    }
+    protected _serialize(source: Route, serializer: Serializer<unknown, unknown, unknown, unknown>): unknown {
+        return serializer.createPrimitive(source.toString())
+    }
+
+    protected _deserialize(handle: any, deserializer: Deserializer<unknown, unknown, unknown, unknown>): Route {
+        const value = Type.string["_deserialize"](handle, deserializer)
+        return Route.parse(value)
+    }
+}
 
 const FormData_t = Type.passthrough(null as any)
 export const RemoteUIContract = StructSyncContract.define(class RemoteUI extends Struct.define("RemoteUI", {}) { }, {
-    openSession: ActionType.define("openSession", Type.object({ route: Route_t }), Type.object({ session: Type.string, root: UIElement_t, forms: FormData_t.as(Type.record) })),
+    openSession: ActionType.define("openSession", Type.object({ route: Route_t }), Type.object({ session: Type.string, root: UIElement_t, forms: FormData_t.as(Type.map) })),
     renderSession: ActionType.define("rendedSession", Type.object({ session: Type.string, slot: Route_t }), UIElement_t),
     closeSession: ActionType.define("closeSession", Type.object({ session: Type.string }), Type.empty),
     triggerAction: ActionType.define("triggerAction", Type.object({ session: Type.string, action: Type.string, form: FormData_t, sender: Type.string.as(Type.nullable) }), Type.empty)

@@ -1,8 +1,8 @@
 import { mdiAlert, mdiCheckboxBlankOutline, mdiCheckboxMarked } from "@mdi/js"
-import { computed, defineComponent, h, inject, InjectionKey, onUnmounted, PropType, provide, reactive, Ref, ref, watch } from "vue"
+import { InjectionKey, PropType, Ref, computed, defineComponent, h, inject, onUnmounted, provide, reactive, ref, watch } from "vue"
 import { cloneArray, isAlpha, unreachable, unzip } from "../comTypes/util"
 import { Route } from "../remoteUICommon/RemoteUI"
-import { parseActionID, parseModelID, UI, UIElement } from "../remoteUICommon/UIElement"
+import { UI, UIElement, parseActionID, parseModelID } from "../remoteUICommon/UIElement"
 import { Struct } from "../struct/Struct"
 import { Button } from "../vue3gui/Button"
 import { useDynamicsEmitter } from "../vue3gui/DynamicsEmitter"
@@ -78,7 +78,7 @@ function useFormModel(session: Ref<RemoteUISessionHandle>, modelFactory: () => s
 
     const value = computed({
         get: () => {
-            let target = session.value.forms[model.value.form]
+            let target = session.value.forms.get(model.value.form)
             for (let segment of model.value.path) {
                 target = target[segment]
             }
@@ -86,7 +86,7 @@ function useFormModel(session: Ref<RemoteUISessionHandle>, modelFactory: () => s
             return target
         },
         set: value => {
-            let target = session.value.forms[model.value.form]
+            let target = session.value.forms.get(model.value.form)
             const path = cloneArray(model.value.path)
             const final = path.pop()!
 
@@ -116,7 +116,7 @@ function useAction(session: Ref<RemoteUISessionHandle>, actionFactory: () => str
         if (action.value.type == "action") {
             promise = session.value.triggerAction(action.value.id, null, sender.value.id)
         } else if (action.value.type == "form") {
-            const form = session.value.forms[action.value.form]
+            const form = session.value.forms.get(action.value.form)
             promise = session.value.triggerAction(action.value.id, form, sender.value.id)
         } else unreachable()
 
@@ -404,7 +404,7 @@ export const RemoteUIView = (defineComponent({
                             </div>
                         ),
                         default: () => (
-                            session.value.root && <UIElementView element={session.value.root!} />
+                            session.value.root && <UIElementView element={session.value.root! as any} />
                         )
                     }}</Overlay>
                 )

@@ -1,29 +1,13 @@
 import { Struct } from "../struct/Struct"
-import { SerializationError, Type } from "../struct/Type"
+import { Type } from "../struct/Type"
 
 export type MetaActionType = "cancel" | "reload"
 
 export type UIElement = InstanceType<(typeof UI.InternalTypes)[keyof typeof UI.InternalTypes]>
 
-export const UIElementInternal_t: Type<unknown> = Type.createType({
-    default: () => null,
-    serialize(element) {
-        const name = Struct.getBaseType(element).name
-        const data = element.serialize()
-        data.type = name
-        return data
-    },
-    deserialize(source) {
-        const name = source.type as keyof typeof UI.InternalTypes
-        if (!(name in UI.InternalTypes)) throw new SerializationError(`Invalid UI element type "${name}"`)
-        const ctor = UI.InternalTypes[name]
-        return ctor.deserialize(source)
-    },
-    getDefinition(indent) { return indent + this.name },
-    name: "UIElement"
-})
+const UI_ELEMENTS_SERIALIZER = new Struct.PolymorphicSerializer<any>("UIElement")
 
-export const UIElement_t = UIElementInternal_t as Type<UIElement>
+export const UIElement_t = UI_ELEMENTS_SERIALIZER.base as Type<UIElement>
 
 const VARIANT_LIST = ["danger", "white", "black", "secondary", "primary", "warning", "success", "dark"] as const
 
@@ -105,7 +89,7 @@ export namespace UI {
         }) { }
 
         export class Frame extends Struct.define("Frame", {
-            children: UIElementInternal_t.as(Type.array).as(Type.nullable),
+            children: UI_ELEMENTS_SERIALIZER.base.as(Type.array).as(Type.nullable),
             ...layoutProps,
             ...positionProps,
             ...styleProps
@@ -151,7 +135,7 @@ export namespace UI {
 
         export class Table extends Struct.define("Table", {
             variable: Type.string,
-            columns: Type.object({ label: Type.string, key: Type.string, element: UIElementInternal_t }).as(Type.array),
+            columns: Type.object({ label: Type.string, key: Type.string, element: UI_ELEMENTS_SERIALIZER.base }).as(Type.array),
             model: Type.string,
             ...positionProps,
             ...styleProps
@@ -163,6 +147,8 @@ export namespace UI {
             ...styleProps
         }) { }
     }
+
+    for (const type of Object.values(InternalTypes)) UI_ELEMENTS_SERIALIZER.register(type)
 }
 
 export function parseActionID(id: string) {
